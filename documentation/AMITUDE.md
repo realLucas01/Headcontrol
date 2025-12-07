@@ -1,0 +1,1 @@
+(A): Eine Minecraft Anwendung (T): in welcher man die Welt erkundet, baut und abbaut (E): auf einem Desktop Computer (I):((U) in dem die Benutzer (M) mit Kopfbewegungen Befehle ausführen und durch Sprachbefehlen ihre Wünsche äußern welche, (D): über die Webcam und ein Mikrofon aufgenommen werden (M): um Interaktionen im Spiel umzusetzen.
