@@ -5,28 +5,17 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import org.opencv.core.Mat;
-import org.opencv.core.Scalar;
+import org.opencv.videoio.VideoCapture;
+import org.opencv.objdetect.FaceDetectorYN;
 import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
-import org.opencv.videoio.VideoCapture;
-import org.opencv.core.MatOfDouble;
-
-
-
+import org.opencv.calib3d.Calib3d;
+import org.opencv.core.*;
 
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import org.opencv.core.MatOfPoint2f;
-import org.opencv.core.MatOfPoint3f;
-import org.opencv.core.CvType;
-import org.opencv.core.Point;
-import org.opencv.calib3d.Calib3d;
-import org.opencv.objdetect.FaceDetectorYN;
-import org.opencv.core.Point3;
-
-
 
 public class FXController {
 	private FaceDetectorYN yunet;
@@ -39,20 +28,17 @@ public class FXController {
 	// Kopfhaltung
 	public enum HeadState {
 	    NEUTRAL,
-	    LEFT,
+		LEFT,
 	    RIGHT,
 	    UP,
 	    DOWN
 	}
 	private HeadState headState= HeadState.NEUTRAL; // Startposition
 
-	private int leftHold=0, rightHold=0;
-	private static final int HOLD = 4; // Anzahl der Frames, die der Kopf in einer Position bleiben muss
+    // Anzahl der Frames, die der Kopf in einer Position bleiben muss
 
-	private int holdCounter = 0;
+    private int holdCounter = 0;
 	private static final int HOLD_FRAMES = 5;
-
-
 
 	@FXML
 	private Button cameraButton;
@@ -62,8 +48,8 @@ public class FXController {
 	private ScheduledExecutorService timer;
 	private VideoCapture capture;
 	private boolean cameraActive;
-	private Mat rvecPrev = new Mat();
-	private Mat tvecPrev = new Mat();
+	private Mat rvecPrev;
+	private Mat tvecPrev;
 	private boolean hasPrevPose = false;
 	// Schwellenwert für die Zustandsänderung
 	private static final double YAW_ENTER  = 15.0;
@@ -84,6 +70,8 @@ public class FXController {
 	
 	protected void init() {
 	    this.capture = new VideoCapture();
+		rvecPrev = new Mat();
+		tvecPrev = new Mat();
 
 	    try {
 	    	// Modell laden
@@ -228,112 +216,115 @@ public class FXController {
 		
 		return frame;
 	}
-
+	/**
+	 * Pose Schätzung aus 5 Gesichtspunkten:
+	 * - 2D Punkte aus YuNet: Augen, Nase, Mundwinkel
+	 * - 3D “Standard Face Model” Punkte
+	 */
 	private void estimatePoseFrom5Points(Mat frameBgr, Point le, Point re, Point no, Point lm, Point rm) {
-	    // 2D image points
-	    MatOfPoint2f imagePoints = new MatOfPoint2f(no, le, re, lm, rm);
+		// 2D Bildpunkte
+		MatOfPoint2f imagePoints = new MatOfPoint2f(no, le, re, lm, rm);
 
-	    // 3D model points (grob, standardisierte Face-Geometrie)
-	    // Reihenfolge muss zur 2D-Reihenfolge passen!
-	    MatOfPoint3f modelPoints = new MatOfPoint3f(
-	        new Point3(0.0,    0.0,   0.0),    // nose tip
-	        new Point3(-225.0, 170.0, -135.0), // left eye
-	        new Point3(225.0,  170.0, -135.0), // right eye
-	        new Point3(-150.0, -150.0, -125.0),// left mouth
-	        new Point3(150.0,  -150.0, -125.0) // right mouth
-	    );
+		// 3D ModellPunkte
+		MatOfPoint3f modelPoints = new MatOfPoint3f(
+				new Point3(0.0, 0.0, 0.0),    // nose tip
+				new Point3(-225.0, 170.0, -135.0), // left eye
+				new Point3(225.0, 170.0, -135.0), // right eye
+				new Point3(-150.0, -150.0, -125.0),// left mouth
+				new Point3(150.0, -150.0, -125.0) // right mouth
+		);
 
-	    // Camera intrinsics (approx)
-	    double focal = frameBgr.cols();
-	    Point center = new Point(frameBgr.cols()/2.0, frameBgr.rows()/2.0);
+		// Kamera-Intrinsics grob schätzen:
+		double focal = frameBgr.cols();
+		Point center = new Point(frameBgr.cols() / 2.0, frameBgr.rows() / 2.0);
 
-	    Mat cameraMatrix = Mat.eye(3,3, CvType.CV_64F);
-	    cameraMatrix.put(0,0, focal); cameraMatrix.put(0,2, center.x);
-	    cameraMatrix.put(1,1, focal); cameraMatrix.put(1,2, center.y);
+		Mat cameraMatrix = Mat.eye(3, 3, CvType.CV_64F);
+		cameraMatrix.put(0, 0, focal);
+		cameraMatrix.put(0, 2, center.x);
+		cameraMatrix.put(1, 1, focal);
+		cameraMatrix.put(1, 2, center.y);
 
-	    MatOfDouble distCoeffs = new MatOfDouble(0, 0, 0, 0);   // oder 5 Werte: 0,0,0,0,0
+		MatOfDouble distCoeffs = new MatOfDouble(0, 0, 0, 0);   // oder 5 Werte: 0,0,0,0,0
 
-	    Mat rvec = new Mat();
-	    Mat tvec = new Mat();
+		Mat rvec = new Mat();
+		Mat tvec = new Mat();
 
-	    boolean ok = Calib3d.solvePnP(
-	        modelPoints, imagePoints,
-	        cameraMatrix, distCoeffs,
-	        rvec, tvec,
-	        false, Calib3d.SOLVEPNP_EPNP
-	    );
-	    if (!ok) return;
+		boolean ok = Calib3d.solvePnP(
+				modelPoints, imagePoints,
+				cameraMatrix, distCoeffs,
+				rvec, tvec,
+				false, Calib3d.SOLVEPNP_EPNP
+		);
+		if (!ok) return;
 
-	    	rvecPrev = rvec.clone();
-	    	tvecPrev = tvec.clone();
-	    	hasPrevPose = true;
-	    
-	    Mat R = new Mat();
+		rvecPrev = rvec.clone();
+		tvecPrev = tvec.clone();
+		hasPrevPose = true;
 
-	    Calib3d.Rodrigues(rvec, R);
-	    
+		Mat R = new Mat();
 
-	    double[] e = rotationMatrixToEuler(R); // [pitch, yaw, roll] in deg (eine gängige Konvention)
-	 // Ersetze den unteren Teil der estimatePoseFrom5Points Methode:
+		Calib3d.Rodrigues(rvec, R);
 
-	    double pitch = e[0], yaw = e[1], roll = e[2];
 
-	    if (!isCalibrated) {
-	        // KALIBRIERUNGSPHASE
-	        sumYaw += yaw;
-	        sumPitch += pitch;
-	        calibrationFramesCounter++;
+		double[] e = rotationMatrixToEuler(R);
 
-	        Imgproc.putText(frameBgr, "Kalibrierung... Bitte gerade schauen (" + calibrationFramesCounter + ")", 
-	            new Point(20, 130), Imgproc.FONT_HERSHEY_SIMPLEX, 0.7, new Scalar(0, 165, 255), 2);
+		double pitch = e[0], yaw = e[1], roll = e[2];
 
-	        if (calibrationFramesCounter >= MAX_CALIBRATION_FRAMES) {
-	            offsetYaw = sumYaw / MAX_CALIBRATION_FRAMES;
-	            offsetPitch = sumPitch / MAX_CALIBRATION_FRAMES;
-	            isCalibrated = true;
-	            System.out.println(">>> KALIBRIERUNG ABGESCHLOSSEN: Yaw Offset: " + offsetYaw + " Pitch Offset: " + offsetPitch);
-	        }
-	    } else {
-	        // NORMALER BETRIEB (Werte um Offset korrigieren)
-	        double correctedYaw = yaw - offsetYaw;
-	        double correctedPitch = pitch - offsetPitch;
+		if (!isCalibrated) {
+			// KALIBRIERUNGSPHASE
+			sumYaw += yaw;
+			sumPitch += pitch;
+			calibrationFramesCounter++;
 
-	        // Smoothing auf die korrigierten Werte anwenden
-	        smoothPitch = (1 - POSEALPHA) * smoothPitch + POSEALPHA * correctedPitch;
-	        smoothYaw = (1 - POSEALPHA) * smoothYaw + POSEALPHA * correctedYaw;
+			Imgproc.putText(frameBgr, "Kalibrierung... Bitte gerade schauen (" + calibrationFramesCounter + ")",
+					new Point(20, 130), Imgproc.FONT_HERSHEY_SIMPLEX, 0.7, new Scalar(0, 165, 255), 2);
 
-	        // Jetzt erst den State berechnen
-	        updateHeadState(smoothYaw, smoothPitch);
+			if (calibrationFramesCounter >= MAX_CALIBRATION_FRAMES) {
+				offsetYaw = sumYaw / MAX_CALIBRATION_FRAMES;
+				offsetPitch = sumPitch / MAX_CALIBRATION_FRAMES;
+				isCalibrated = true;
+				System.out.println(">>> KALIBRIERUNG ABGESCHLOSSEN: Yaw Offset: " + offsetYaw + " Pitch Offset: " + offsetPitch);
+			}
+		} else {
+			// NORMALER BETRIEB (Werte um Offset korrigieren)
+			double correctedYaw = yaw - offsetYaw;
+			double correctedPitch = pitch - offsetPitch;
 
-	        // Anzeige der korrigierten Werte
-	        Imgproc.putText(frameBgr,
-	            String.format("Yaw %.1f | Pitch %.1f (kalibriert)", smoothYaw, smoothPitch),
-	            new Point(20, 30), Imgproc.FONT_HERSHEY_SIMPLEX, 0.7, new Scalar(0, 255, 0), 2
-	        );
-	    }
-	 // Am Ende von estimatePoseFrom5Points hinzufügen:
+			// Smoothing auf die korrigierten Werte anwenden
+			smoothPitch = (1 - POSEALPHA) * smoothPitch + POSEALPHA * correctedPitch;
+			smoothYaw = (1 - POSEALPHA) * smoothYaw + POSEALPHA * correctedYaw;
 
-	 // 1. Logik berechnen
-	 updateHeadState(smoothYaw, smoothPitch);
+			updateHeadState(smoothYaw, smoothPitch);
 
-	 // 2. Visuelles Feedback im Bild (GUI)
-	 Scalar color = (headState == HeadState.NEUTRAL) ? new Scalar(0, 255, 0) : new Scalar(0, 255, 255);
+			// Anzeige der korrigierten Werte
+			Imgproc.putText(frameBgr,
+					String.format("Yaw %.1f | Pitch %.1f (kalibriert)", smoothYaw, smoothPitch),
+					new Point(20, 30), Imgproc.FONT_HERSHEY_SIMPLEX, 0.7, new Scalar(0, 255, 0), 2
+			);
+		}
 
-	 // Hintergrund-Box für bessere Lesbarkeit
-	 Imgproc.rectangle(frameBgr, new Point(10, 70), new Point(250, 110), new Scalar(0,0,0), -1);
+		// Visuelles Feedback im Bild (GUI)
+		Scalar color = (headState == HeadState.NEUTRAL) ? new Scalar(0, 255, 0) : new Scalar(0, 255, 255);
 
-	 // Status-Text zeichnen
-	 Imgproc.putText(
-	     frameBgr, 
-	     "STATUS: " + headState.toString(), 
-	     new Point(20, 100), 
-	     Imgproc.FONT_HERSHEY_SIMPLEX, 
-	     0.8, 
-	     color, 
-	     2
-	 );
+		// Hintergrund-Box für bessere Lesbarkeit
+		Imgproc.rectangle(frameBgr, new Point(10, 70), new Point(250, 110), new Scalar(0, 0, 0), -1);
+
+		// Status-Text zeichnen
+		Imgproc.putText(
+				frameBgr,
+				"STATUS: " + headState.toString(),
+				new Point(20, 100),
+				Imgproc.FONT_HERSHEY_SIMPLEX,
+				0.8,
+				color,
+				2
+		);
 
 	}
+
+	/**
+	 * Reset der Kalibrierung
+	 */
 	
 	public void resetCalibration() {
 	    isCalibrated = false;
@@ -369,7 +360,9 @@ public class FXController {
 
 
 	private void detectAndDisplay(Mat frameBgr) {
-	    if (!yunetReady) return;
+     int leftHold=0,	rightHold=0;
+
+		if (!yunetReady) return;
 
 	    yunet.setInputSize(new Size(frameBgr.cols(), frameBgr.rows()));
 
@@ -406,12 +399,14 @@ public class FXController {
 	    double x = f[0], y = f[1], w = f[2], h = f[3];
 	    double score = f[4];
 
+		// Landmarks: left eye, right eye, nose, left mouth, right mouth
 	    Point le = new Point(f[5],  f[6]);
 	    Point re = new Point(f[7],  f[8]);
 	    Point no = new Point(f[9],  f[10]);
 	    Point lm = new Point(f[11], f[12]);
 	    Point rm = new Point(f[13], f[14]);
 
+		// Zeichnen
 	    Imgproc.rectangle(frameBgr, new Point(x, y), new Point(x+w, y+h), new Scalar(0,255,0), 2);
 	    Imgproc.circle(frameBgr, le, 2, new Scalar(0,255,0), -1);
 	    Imgproc.circle(frameBgr, re, 2, new Scalar(0,255,0), -1);

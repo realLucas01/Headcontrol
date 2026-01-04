@@ -1,14 +1,15 @@
 package faceTracking;
 
 import javafx.application.Application;
+import javafx.scene.Parent;
 import javafx.stage.Stage;
 import javafx.scene.Scene;
-import javafx.scene.layout.BorderPane;
 import javafx.fxml.FXMLLoader;
-import org.opencv.core.Core;
 
 import javafx.event.EventHandler;
 import javafx.stage.WindowEvent;
+import nu.pattern.OpenCV;
+import org.bytedeco.opencv.global.opencv_core;
 
 
 public class Main extends Application {
@@ -17,9 +18,15 @@ public class Main extends Application {
     public void start(Stage primaryStage) {
         try
         {
+            OpenCV.loadLocally(); // oder loadShared()
+
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/FirstFX.fxml"));
+            Parent root = loader.load();
+
+
             // load the FXML resource
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("FirstFX.fxml"));
-            BorderPane root = (BorderPane) loader.load();
+            //FXMLLoader loader = new FXMLLoader(getClass().getResource("/FirstFX.fxml"));
+            //BorderPane root = (BorderPane) loader.load();
             // create and style a scene
             Scene scene = new Scene(root, 800, 600);
             // scene
@@ -48,8 +55,7 @@ public class Main extends Application {
 
     public static void main(String[] args) {
         // load the native OpenCV library
-        System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
-
+        System.out.println(opencv_core.CV_VERSION);
         launch(args);
     }
 }

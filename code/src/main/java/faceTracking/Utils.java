@@ -3,11 +3,11 @@ package faceTracking;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
 
+import javafx.embed.swing.SwingFXUtils;
 import org.opencv.core.Mat;
 
 import javafx.application.Platform;
 import javafx.beans.property.ObjectProperty;
-import javafx.embed.swing.SwingFXUtils;
 import javafx.scene.image.Image;
 
 /**
@@ -58,13 +58,8 @@ public final class Utils
 		});
 	}
 	
-	/**
-	 * Support for the {@link mat2image()} method
-	 * 
-	 * @param original
-	 *            the {@link Mat} object in BGR or grayscale
-	 * @return the corresponding {@link BufferedImage}
-	 */
+
+
 	private static BufferedImage matToBufferedImage(Mat original)
 	{
 		// init
