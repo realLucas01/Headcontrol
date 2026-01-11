@@ -34,11 +34,6 @@
             <version>${javafx.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.bytedeco</groupId>
-            <artifactId>opencv-platform</artifactId>
-            <version>${opencv.version}</version>
-        </dependency>
-        <dependency>
             <groupId>org.openjfx</groupId>
             <artifactId>javafx-swing</artifactId>
             <version>${javafx.version}</version>
@@ -51,7 +46,7 @@
                 <artifactId>javafx-maven-plugin</artifactId>
                 <version>0.0.8</version>
                 <configuration>
-                    <mainClass>faceTracking.Main</mainClass>
+                    <mainClass>face.tracking.Main</mainClass>
                 </configuration>
             </plugin>
         </plugins>

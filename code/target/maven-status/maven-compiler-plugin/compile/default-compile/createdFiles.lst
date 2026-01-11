@@ -1,6 +1,5 @@
-faceTracking\FXController$HeadState.class
-faceTracking\FXController.class
-faceTracking\Main.class
-faceTracking\Utils.class
-faceTracking\Main$1.class
-faceTracking\FXController$1.class
+face\tracking\Utils.class
+face\tracking\Main.class
+face\tracking\Main$1.class
+face\tracking\FXController.class
+face\tracking\FXController$HeadState.class

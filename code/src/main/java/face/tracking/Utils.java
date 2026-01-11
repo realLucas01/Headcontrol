@@ -1,4 +1,4 @@
-package faceTracking;
+package face.tracking;
 
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;

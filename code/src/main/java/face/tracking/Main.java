@@ -1,4 +1,4 @@
-package faceTracking;
+package face.tracking;
 
 import javafx.application.Application;
 import javafx.scene.Parent;
@@ -9,7 +9,6 @@ import javafx.fxml.FXMLLoader;
 import javafx.event.EventHandler;
 import javafx.stage.WindowEvent;
 import nu.pattern.OpenCV;
-import org.bytedeco.opencv.global.opencv_core;
 
 
 public class Main extends Application {
@@ -55,7 +54,7 @@ public class Main extends Application {
 
     public static void main(String[] args) {
         // load the native OpenCV library
-        System.out.println(opencv_core.CV_VERSION);
+
         launch(args);
     }
 }
