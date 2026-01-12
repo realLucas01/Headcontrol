@@ -50,9 +50,12 @@ public class MovementDemo {
 
         //Player only walks when previously set Item is in Hand and the Player is on the ground(or else we reeeeally accelerate)
         if((event.player.isHolding(test))&&(event.player.onGround())){
-
             //Make the player walk forward in standard walking speed.
             event.player.moveRelative(0.1f,new Vec3(0,0,0.5f));
+        }
+        //adjust to high speed when Jumping
+        if((event.player.isHolding(test))&&!(event.player.onGround())){
+            event.player.moveRelative(0.1f,new Vec3(0,0,0.15f));
         }
 
         //Player only looks up when crouching
