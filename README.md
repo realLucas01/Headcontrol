@@ -16,4 +16,7 @@ oder über Befehl:
 mvn clean javafx:run   
 
 Die Dateien: Main, utils.java, FirstFX.fxml stammen nicht von mir und stammen größtenteils von https://github.com/opencv-java/camera-calibration/tree/master  
-Im Controller können derzeit mehrere unnötige oder fehlerhafte code blöcke existieren, da die Datei mehrfach zum testen grundlegend überarbeitet wurde. 
+Im Controller können derzeit mehrere unnötige oder fehlerhafte code blöcke existieren, da die Datei mehrfach zum testen grundlegend überarbeitet wurde.   
+
+
+Sollte das Problem: Modul not found auftreten -> rechtsklick auf die pom.xml, "add/build as maven project"
