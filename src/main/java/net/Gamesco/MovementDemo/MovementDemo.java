@@ -38,7 +38,7 @@ public class MovementDemo {
         MinecraftForge.EVENT_BUS.register(this);
 
         // Register our mod's ForgeConfigSpec so that Forge can create and load the config file for us
-        context.registerConfig(ModConfig.Type.COMMON, Config.SPEC);
+        //context.registerConfig(ModConfig.Type.COMMON, Config.SPEC);
     }
 
 
