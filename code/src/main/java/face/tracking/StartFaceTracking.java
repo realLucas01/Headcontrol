@@ -11,7 +11,7 @@ import javafx.stage.WindowEvent;
 import nu.pattern.OpenCV;
 
 
-public class Main extends Application {
+public class StartFaceTracking extends Application {
 
     @Override
     public void start(Stage primaryStage) {
