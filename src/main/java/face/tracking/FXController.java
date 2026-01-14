@@ -40,7 +40,7 @@ public class FXController {
 		RIGHT_UP, RIGHT_DOWN
 	}
 
-	private HeadState headState = HeadState.NEUTRAL; // Startposition
+	public HeadState headState = HeadState.NEUTRAL; // Startposition
 
 	// Anzahl der Frames, die der Kopf in einer Position bleiben muss
 	private int holdCounter = 0;
@@ -147,7 +147,7 @@ public class FXController {
 		if (targetState != headState) {
 			if (++holdCounter >= HOLD_FRAMES) {
 				headState = targetState;
-				System.out.println(">>> BESTÄTIGTER STATUS: " + headState);
+				//System.out.println(">>> BESTÄTIGTER STATUS: " + headState);
 				holdCounter = 0;
 			}
 		} else {
@@ -426,6 +426,7 @@ public class FXController {
 		);
 
 	}
+    public HeadState getHeadState(){return headState;}
 
 	/**
 	 * Reset der Kalibrierung
