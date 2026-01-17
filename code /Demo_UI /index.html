@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>HeadControl UI Prototype (Minecraft)</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app">
+    <!-- Fake "Minecraft Viewport" -->
+    <div class="viewport" aria-label="Minecraft Viewport (Mock)">
+      <div class="crosshair" aria-hidden="true"></div>
+
+      <!-- HUD Overlay -->
+      <div class="hud" id="hud">
+        <div class="hud-row">
+          <span class="badge" id="badgeEnabled">HeadControl: ON</span>
+          <span class="badge subtle" id="badgeOverlay">Overlay</span>
+        </div>
+
+        <div class="hud-block">
+          <div class="hud-label">Kopfdrehung</div>
+          <div class="bar"><div class="bar-fill" id="barYaw"></div></div>
+        </div>
+
+        <div class="hud-block">
+          <div class="hud-label">Kopfneigung</div>
+          <div class="bar"><div class="bar-fill" id="barPitch"></div></div>
+        </div>
+
+        <div class="hud-block">
+          <div class="hud-label">Körperneigung</div>
+          <div class="bar"><div class="bar-fill" id="barLean"></div></div>
+        </div>
+
+        <div class="hud-hint" id="hudHint">
+          Demo: Pfeiltasten simulieren Kopfbewegung, WASD simuliert Körperneigung. R = Reset.
+        </div>
+      </div>
+
+      <!-- Top bar (like in-game pause/options access) -->
+      <div class="topbar">
+        <div class="title">Minecraft (Mock)</div>
+
+        <div class="actions">
+          <!-- Buttons remain side-by-side -->
+          <div class="actions-row">
+            <button class="btn" id="btnSettings">Settings</button>
+            <button class="btn ghost" id="btnToggleEnabled">Toggle HeadControl</button>
+          </div>
+
+          <!-- Facecam Preview below the buttons -->
+          <div class="facecam">
+            <div class="facecam-placeholder">Facecam</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Modal -->
+  <div class="modal-backdrop" id="modalBackdrop" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal-header">
+        <h2 id="modalTitle">HeadControl Settings</h2>
+        <button class="btn ghost" id="btnClose">Close</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="grid">
+          <label class="row">
+            <span>HeadControl aktiv</span>
+            <input type="checkbox" id="optEnabled" />
+          </label>
+
+          <label class="row">
+            <span>Overlay anzeigen</span>
+            <input type="checkbox" id="optOverlay" />
+          </label>
+
+          <label class="row">
+            <span>Empfindlichkeit</span>
+            <input type="range" id="optSensitivity" min="0.5" max="3" step="0.1" />
+            <span class="value" id="valSensitivity"></span>
+          </label>
+
+          <label class="row">
+            <span>Deadzone</span>
+            <input type="range" id="optDeadzone" min="0" max="0.4" step="0.01" />
+            <span class="value" id="valDeadzone"></span>
+          </label>
+
+          <div class="row">
+            <span>Kalibrierung</span>
+            <button class="btn" id="btnCalibrate">Kalibrieren (Reset Werte)</button>
+          </div>
+
+          <div class="row">
+            <span>Optional: Voice Command</span>
+            <button class="btn" id="btnVoiceInventory">Simuliere „Inventar öffnen“</button>
+          </div>
+        </div>
+
+        <div class="toast-area" id="toastArea" aria-live="polite"></div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn ghost" id="btnResetAll">Reset Settings</button>
+        <button class="btn" id="btnApply">Apply</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
