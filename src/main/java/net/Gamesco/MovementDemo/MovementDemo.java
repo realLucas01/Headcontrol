@@ -1,11 +1,17 @@
 //Main Class for programming the demo mod for our MMMI project
 package net.Gamesco.MovementDemo;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.logging.LogUtils;
+import net.minecraft.client.KeyMapping;
+import net.minecraft.client.KeyboardHandler;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.KeyboardInput;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.client.event.InputEvent;
+import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.server.ServerStartingEvent;
@@ -68,12 +74,20 @@ public class MovementDemo {
 
             //Make the player walk forward in standard walking speed.
             event.player.moveRelative(0.1f,new Vec3(0,0,0.5f));
+            //KeyMapping.click();
+            //new KeyboardInput(KeyMapping.click(key_up));
         }
         //adjust to high speed when Jumping
-        if((event.player.isHolding(test))&&!(event.player.onGround())){
+        else if((event.player.isHolding(test))&&!(event.player.onGround())){
             event.player.moveRelative(0.1f,new Vec3(0,0,0.15f));
 
 
+        }
+
+        //Fix sprint Button not working when walking forward
+        if((event.player.isHolding(test))&&(event.player.isSprinting())){
+            //Make the player walk forward in standard walking speed.
+            event.player.moveRelative(0.1f,new Vec3(0,0,1));
         }
 
         //Player only looks up when crouching
@@ -81,6 +95,16 @@ public class MovementDemo {
             //Make the Player look up, although still quite "stuttery"
             event.player.setXRot(event.player.getXRot()-0.2f);
         }
+
+        if (Keybindings.INSTANCE.toggleActivationState.consumeClick()){
+            event.player.giveExperienceLevels(4);
+        }
+
+    }
+
+    @SubscribeEvent
+    public void onKeyPress(InputEvent.InteractionKeyMappingTriggered event) {
+        System.out.println(event.getKeyMapping().getName());
     }
 
     private void commonSetup(final FMLCommonSetupEvent event)
@@ -108,6 +132,11 @@ public class MovementDemo {
             // Some client setup code
             LOGGER.info("HELLO FROM CLIENT SETUP");
             LOGGER.info("MINECRAFT NAME >> {}", Minecraft.getInstance().getUser().getName());
+        }
+
+        @SubscribeEvent
+        public static void registerKeys(RegisterKeyMappingsEvent event){
+            event.register(Keybindings.INSTANCE.toggleActivationState);
         }
     }
 }
