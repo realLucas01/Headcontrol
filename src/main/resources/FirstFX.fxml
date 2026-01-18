@@ -29,8 +29,10 @@
 			<padding>
 				<Insets top="25" right="25" bottom="25" left="25" />
 			</padding>
-			<Button fx:id="cameraButton" alignment="center" text="Start camera" onAction="#startCamera" disable="false" />
-			<Button fx:id="resetButton" text="Kalibrieren" onAction="#handleResetCalibration" />
+			<Label text="Kamera wählen:"/>
+			<ComboBox fx:id="cameraSelector" prefWidth="150.0" />
+			<Button fx:id="cameraButton" text="Start Camera" onAction="#startCamera" />			<Button fx:id="resetButton" text="Kalibrieren" onAction="#handleResetCalibration" />
 		</HBox>
+
 	</bottom>
 </BorderPane>

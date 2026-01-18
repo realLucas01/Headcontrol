@@ -15,6 +15,8 @@ public class StartFaceTracking extends Application {
 
     @Override
     public void start(Stage primaryStage) {
+        System.setProperty("opencv.videoio.log_level","3");
+
         try
         {
             OpenCV.loadLocally(); // oder loadShared()
