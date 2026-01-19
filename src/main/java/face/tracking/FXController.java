@@ -23,6 +23,12 @@ public class FXController {
 	private FaceDetectorYN yunet;
 	private boolean yunetReady = false;
 
+    // Rohwerte aus der 3D-Schätzung
+    private double rawYaw, rawPitch, rawZ;
+
+    // Maximale Kalibrierungswerte (für dynamische Schwellen)
+    private static final int MAX_CALIBRATION_FRAMES = 60; // 2 Sek bei 30 FPS
+
 
 	// Variablen für Glättung
 	private double smoothYaw = 0;
@@ -97,7 +103,6 @@ public class FXController {
     private double offsetPitch = 0;
 	private boolean isCalibrated = false;
 	private int calibrationFramesCounter = 0;
-	private static final int MAX_CALIBRATION_FRAMES = 30; // ca. 1 Sekunde bei 30 FPS
 
 	// Summen für die Mittelwertbildung
 	private double sumYaw = 0;
@@ -173,105 +178,98 @@ public class FXController {
 	/*
 	 * Aktualisierung Kopfzustand anhand Yaw/Pitch Werten
 	 */
-	private void updateHeadState(double yawDeg, double pitchDeg) {
+	private void updateHeadState(double yaw, double pitch) {
 		//  Schwellenwerte bestimmen
-		double currentYawThres   = (headState != HeadState.NEUTRAL) ? (dynamicYawThres * EXIT_FACTOR) : dynamicYawThres;
-		double currentPitchThres = (headState != HeadState.NEUTRAL) ? (dynamicPitchThres * EXIT_FACTOR) : dynamicPitchThres;
+        double yawThres = 8.0;
+        double pitchThres = 5.0;
 
-		// Temporäre Richtungen bestimmen
-		boolean isLeft  = yawDeg < -currentYawThres;
-		boolean isRight = yawDeg > currentYawThres;
-		boolean isUp    = pitchDeg < -currentPitchThres;
-		boolean isDown  = pitchDeg > currentPitchThres;
+        boolean isLeft  = yaw < -dynamicYawThres;
+        boolean isRight = yaw > dynamicYawThres;
+        boolean isUp    = pitch < -dynamicPitchThres; // Nase näher an Augen
+        boolean isDown  = pitch > dynamicPitchThres;  // Nase näher an Mund
 
 		// Ziel-Zustand ermitteln
 		HeadState targetState = HeadState.NEUTRAL;
-		if (isLeft && isUp)         targetState = HeadState.LEFT_UP;
-		else if (isLeft && isDown)  targetState = HeadState.LEFT_DOWN;
-		else if (isRight && isUp)   targetState = HeadState.RIGHT_UP;
-		else if (isRight && isDown) targetState = HeadState.RIGHT_DOWN;
-		else if (isLeft)            targetState = HeadState.LEFT;
-		else if (isRight)           targetState = HeadState.RIGHT;
-		else if (isUp)              targetState = HeadState.UP;
-		else if (isDown)            targetState = HeadState.DOWN;
+        if (isLeft && isUp)         targetState = HeadState.LEFT_UP;
+        else if (isLeft && isDown)  targetState = HeadState.LEFT_DOWN;
+        else if (isRight && isUp)   targetState = HeadState.RIGHT_UP;
+        else if (isRight && isDown) targetState = HeadState.RIGHT_DOWN;
+        else if (isLeft)            targetState = HeadState.LEFT;
+        else if (isRight)           targetState = HeadState.RIGHT;
+        else if (isUp)              targetState = HeadState.UP;
+        else if (isDown)            targetState = HeadState.DOWN;
 
-		// Zustandswechsel mit Hold-Counter (Bestätigung über mehrere Frames)
-		if (targetState != headState) {
-			if (++holdCounter >= HOLD_FRAMES) {
-				headState = targetState;
-				//System.out.println(">>> BESTÄTIGTER STATUS: " + headState);
-				holdCounter = 0;
-			}
-		} else {
-			holdCounter = 0; // Reset, wenn der Zielzustand wieder dem aktuellen entspricht
-		}
-	}
+        // Bestätigung über 3 Frames für Stabilität
+        if (targetState != headState) {
+            if (++holdCounter >= 3) {
+                headState = targetState;
+                holdCounter = 0;
+            }
+        } else {
+            holdCounter = 0;
+        }
+    }
 	private void updateTiltState(double relRoll) {
 		TiltState targetTilt = TiltState.NEUTRAL;
 
-		// 1. Nur berechnen, wenn wir nicht zu weit gedreht sind
-		if (Math.abs(smoothYaw) <= 20.0) {
-			// Dynamischer Puffer gegen Cross-talk
-			double dynamicStabilityBuffer = Math.abs(smoothYaw) * 0.25;
-			double adjustedThres = dynamicRollThres + dynamicStabilityBuffer;
+        // Hysterese: 100% zum Eintreten, 70% zum Verlassen
+        double enterThres = dynamicRollThres;
+        double exitThres = dynamicRollThres * EXIT_FACTOR;
 
-			// Hysterese für geschmeidiges Verlassen (Exit-Threshold)
-			if (tiltState != TiltState.NEUTRAL) {
-				adjustedThres *= 0.7;
-			}
+        if (tiltState == TiltState.NEUTRAL) {
+            if (relRoll > enterThres) targetTilt = TiltState.LEFT;
+            else if (relRoll < -enterThres) targetTilt = TiltState.RIGHT;
+        } else {
+            // Wir sind bereits in LEFT oder RIGHT -> Exit-Schwelle prüfen
+            if (tiltState == TiltState.LEFT && relRoll > exitThres) targetTilt = TiltState.LEFT;
+            else if (tiltState == TiltState.RIGHT && relRoll < -exitThres) targetTilt = TiltState.RIGHT;
+            else targetTilt = TiltState.NEUTRAL;
+        }
+        tiltState = targetTilt;
+    }
 
-			if (relRoll < -adjustedThres) {
-				targetTilt = TiltState.LEFT;
-			} else if (relRoll > adjustedThres) {
-				targetTilt = TiltState.RIGHT;
-			}
-		}
-		// Wenn Math.abs(smoothYaw) > 20, bleibt targetTilt einfach NEUTRAL
+    private void updateLeanState(double relZ) {
+        LeanState targetLean = LeanState.NEUTRAL;
 
-		if (targetTilt != tiltState) {
-			tiltState = targetTilt;
-			//System.out.println(">>> TILT GEÄNDERT: " + tiltState + " (RelRoll: " + String.format("%.2f", relRoll) + ")");
-		}
-	}
+        // 3D-Z-Werte sind grober. 40-50 Einheiten sind ein guter Schwellenwert.
+        double thresh = 45.0;
 
-	private void updateLeanState(double relZ) {
-		LeanState targetLean = LeanState.NEUTRAL;
+        // relZ = smoothZ - offsetZ
+        // Wenn relZ NEGATIV ist, ist der aktuelle Abstand kleiner als der Kalibrierungsabstand -> FORWARD
+        if (relZ < -thresh) {
+            targetLean = LeanState.FORWARD;
+        }
+        // Wenn relZ POSITIV ist, bist du weiter weg -> BACKWARD
+        else if (relZ > thresh) {
+            targetLean = LeanState.BACKWARD;
+        }
 
-		// Berechne die Schwellen für das "Verlassen" des Zustands (Hysterese)
-		double exitF = dynamicZThresForward * LEAN_EXIT_FACTOR;
-		double exitB = dynamicZThresBackward * LEAN_EXIT_FACTOR;
+        if (targetLean != leanState) {
+            leanState = targetLean;
+        }
+    }
 
-		if (leanState == LeanState.FORWARD) {
-			// Wenn wir schon vorne sind, bleiben wir es, bis wir die Exit-Schwelle unterschreiten
-			if (relZ < -exitF) targetLean = LeanState.FORWARD;
-		} else if (leanState == LeanState.BACKWARD) {
-			if (relZ > exitB) targetLean = LeanState.BACKWARD;
-		} else {
-			// Wenn wir NEUTRAL sind, prüfen wir die vollen dynamicZThres
-			if (relZ < -dynamicZThresForward) targetLean = LeanState.FORWARD;
-			else if (relZ > dynamicZThresBackward) targetLean = LeanState.BACKWARD;
-		}
+    private void drawLeanBar(Mat frame, double relZ) {
+        int x = frame.cols() - 40;
+        int yMid = frame.rows() / 2;
+        int barHalfHeight = 100;
 
-		if (targetLean != leanState) {
-			leanState = targetLean;
-			//System.out.println(">>> LEAN STATE: " + leanState);
-		}
-	}
-	private void drawLeanBar(Mat frame, double relZ) {
-		int x = frame.cols() - 40;
-		int yMid = frame.rows() / 2;
-		int barHalfHeight = 100;
+        // Hintergrund-Schiene (Dunkelgrau)
+        Imgproc.rectangle(frame, new Point(x, yMid - barHalfHeight), new Point(x + 10, yMid + barHalfHeight), new Scalar(50, 50, 50), -1);
 
-		// Hintergrund
-		Imgproc.rectangle(frame, new Point(x, yMid - barHalfHeight), new Point(x + 10, yMid + barHalfHeight), new Scalar(50,50,50), -1);
+        // Schwellenwert-Linien (Weiß)
+        double threshPx = 45.0 * 0.8; // 45 Einheiten skaliert auf die Anzeige
+        Imgproc.line(frame, new Point(x - 5, yMid - threshPx), new Point(x + 15, yMid - threshPx), new Scalar(255, 255, 255), 1);
+        Imgproc.line(frame, new Point(x - 5, yMid + threshPx), new Point(x + 15, yMid + threshPx), new Scalar(255, 255, 255), 1);
 
-		// Aktuelle Position (Skalierung relZ auf Pixel)
-		double displayPos = relZ * 2.0;
-		displayPos = Math.max(-barHalfHeight, Math.min(barHalfHeight, displayPos));
+        // Aktuelle Position: relZ ist NEGATIV bei FORWARD (Abstand wird kleiner)
+        // Wir nehmen -relZ, damit die Kugel beim Vorlehnen nach OBEN geht
+        double displayPos = -relZ * 1.5;
+        displayPos = Math.max(-barHalfHeight, Math.min(barHalfHeight, displayPos));
 
-		Scalar color = (leanState == LeanState.NEUTRAL) ? new Scalar(0,255,0) : new Scalar(0,255,255);
-		Imgproc.circle(frame, new Point(x + 5, yMid + displayPos), 7, color, -1);
-	}
+        Scalar color = (leanState == LeanState.NEUTRAL) ? new Scalar(0, 255, 0) : new Scalar(0, 255, 255);
+        Imgproc.circle(frame, new Point(x + 5, yMid + displayPos), 7, color, -1);
+    }
 
 	private void drawDirectionGrid(Mat frame) {
 		int w = frame.cols();
@@ -279,13 +277,13 @@ public class FXController {
 		int cx = w / 2;
 		int cy = h / 2;
 
-		double visualScale = 6.0;
+		double visualScale = 5.0;
 
 		// Gitter passt sich an die kalibrierten Grenzen an!
 		int dx = (int)(dynamicYawThres * visualScale);
 		int dy = (int)(dynamicPitchThres * visualScale);
 
-		Scalar gridColor = new Scalar(80, 80, 80); // Dunkelgrau
+		Scalar gridColor = new Scalar(100, 100, 100); // Dunkelgrau
 
 		// Zeichne das "Steuer-Kreuz"
 		// Vertikale Linien (Links/Rechts Grenzen)
@@ -437,14 +435,13 @@ public class FXController {
 		);
 
 		// Kamera-Intrinsics grob schätzen:
-		double focal = frameBgr.cols();
-		Point center = new Point(frameBgr.cols() / 2.0, frameBgr.rows() / 2.0);
-
-		Mat cameraMatrix = Mat.eye(3, 3, CvType.CV_64F);
-		cameraMatrix.put(0, 0, focal);
-		cameraMatrix.put(0, 2, center.x);
-		cameraMatrix.put(1, 1, focal);
-		cameraMatrix.put(1, 2, center.y);
+        double focal = frameBgr.cols();
+        Point center = new Point(frameBgr.cols() / 2.0, frameBgr.rows() / 2.0);
+        Mat cameraMatrix = Mat.eye(3, 3, CvType.CV_64F);
+        cameraMatrix.put(0, 0, focal);
+        cameraMatrix.put(0, 2, center.x);
+        cameraMatrix.put(1, 1, focal);
+        cameraMatrix.put(1, 2, center.y);
 
 		MatOfDouble distCoeffs = new MatOfDouble(0, 0, 0, 0);   // oder 5 Werte: 0,0,0,0,0
 
@@ -472,12 +469,16 @@ public class FXController {
 					true, Calib3d.SOLVEPNP_ITERATIVE
 			);
 		}
-		if (!ok) return;
+		//if (!ok) return;
 
 		if (ok) {
 			rvecPrev = rvec.clone();
 			tvecPrev = tvec.clone();
-			hasPrevPose = true;
+            hasPrevPose = true;
+
+            // Extrahiere Z-Distanz (Lean)
+            this.rawZ = tvec.get(2, 0)[0];
+
 			// 1. Definiere Achsen-Endpunkte im 3D-Raum (Länge 100 Einheiten)
 			MatOfPoint3f axisPoints = new MatOfPoint3f(
 					new Point3(100, 0, 0),   // X-Achse (Rot) -> Rechts
@@ -494,142 +495,13 @@ public class FXController {
 			Imgproc.line(frameBgr, no, p[0], new Scalar(0, 0, 255), 3); // X-Achse
 			Imgproc.line(frameBgr, no, p[1], new Scalar(0, 255, 0), 3); // Y-Achse
 			Imgproc.line(frameBgr, no, p[2], new Scalar(255, 0, 0), 3); // Z-Achse
+
+            Mat R = new Mat();
+            Calib3d.Rodrigues(rvec, R);
+            double[] e = rotationMatrixToEuler(R);
+            this.rawPitch = e[0];
+            this.rawYaw = e[1];
 		}
-
-
-		double currentZ = tvec.get(2, 0)[0]; // z-Distanz zur Kamera
-		Mat R = new Mat();
-		Calib3d.Rodrigues(rvec, R);
-		double[] e = rotationMatrixToEuler(R);
-		double pitch = e[0], yaw = e[1], roll = e[2];
-
-		if (!isCalibrated) {
-			// KALIBRIERUNGSPHASE
-			calibrationFramesCounter++;
-
-			// Mittelwert für den Nullpunkt (Offset)
-			sumYaw += yaw;
-			sumPitch += pitch;
-			sumZ += currentZ;
-			sumRoll += roll;
-
-			// 2. Maxima erfassen
-			double currentRelYaw = Math.abs(yaw - (sumYaw / calibrationFramesCounter));
-			double currentRelPitch = Math.abs(pitch - (sumPitch / calibrationFramesCounter));
-			if (currentRelYaw > maxObservedYaw) maxObservedYaw = currentRelYaw;
-			if (currentRelPitch > maxObservedPitch) maxObservedPitch = currentRelPitch;
-
-			double currentRelZ = currentZ - (sumZ / calibrationFramesCounter);
-			if (currentRelZ < maxObservedForward) maxObservedForward = currentRelZ;
-			if (currentRelZ > maxObservedBackward) maxObservedBackward = currentRelZ;
-
-			double currentRelRoll = Math.abs(roll - (sumRoll / calibrationFramesCounter));
-			if (currentRelRoll > maxObservedRoll) maxObservedRoll = currentRelRoll;
-
-
-			Imgproc.putText(frameBgr, "KALIBRIERUNG: Bewege den Kopf in alle Ecken!",
-					new Point(20, 130), Imgproc.FONT_HERSHEY_SIMPLEX, 0.7, new Scalar(0, 165, 255), 2);
-
-			// Fortschrittsbalken anzeigen
-			Imgproc.rectangle(frameBgr, new Point(20, 150), new Point(20 + (calibrationFramesCounter * 2), 160), new Scalar(0, 255, 0), -1);
-
-			if (calibrationFramesCounter >= 200) { // Zeitangabe zum Kali, 30 frames = 1 sek
-				offsetYaw = sumYaw / calibrationFramesCounter;
-				offsetPitch = sumPitch / calibrationFramesCounter;
-				offsetZ = sumZ/200;
-				offsetRoll = sumRoll / 200;
-
-				// Schwellenwerte festlegen, 80% des Maximums
-				dynamicYawThres = maxObservedYaw * 0.8;
-				dynamicPitchThres = maxObservedPitch * 0.8;
-
-				// Sicherheitsschranken
-				dynamicYawThres = Math.max(10.0, Math.min(30.0, dynamicYawThres));
-				dynamicPitchThres = Math.max(8.0, Math.min(25.0, dynamicPitchThres));
-
-				// dynamische Z-Schwellen (80% der beobachteten Bewegung)
-				dynamicZThresForward = Math.abs(maxObservedForward) * 0.8;
-				dynamicZThresBackward = Math.abs(maxObservedBackward) * 0.8;
-
-				// Mindestwerte für Stabilität
-				dynamicZThresForward = Math.max(MIN_Z_MOVEMENT, Math.abs(maxObservedForward) * leanSensitivity);
-				dynamicZThresBackward = Math.max(MIN_Z_MOVEMENT, Math.abs(maxObservedBackward) * leanSensitivity);
-
-				//Schwellenwert Rollen
-				dynamicRollThres = Math.max(10.0, Math.min(30.0, maxObservedRoll * 0.75));
-				//dynamicRollThres = Math.max(10.0, maxObservedRoll * 0.75);
-
-				isCalibrated = true;
-				//System.out.println(">>> DYNAMISCHE SCHWELLEN: Yaw: " + dynamicYawThres + " Pitch: " + dynamicPitchThres);
-			}
-		}else {
-			// NORMALER BETRIEB
-			double correctedYaw = yaw - offsetYaw;
-			double correctedPitch = pitch - offsetPitch;
-			double correctedRoll = roll - offsetRoll;
-
-			double relZ = smoothZ - offsetZ;
-			updateLeanState(relZ);
-
-			// Smoothing auf die korrigierten Werte anwenden
-			smoothPitch = (1 - POSEALPHA) * smoothPitch + POSEALPHA * correctedPitch;
-			smoothYaw = (1 - POSEALPHA) * smoothYaw + POSEALPHA * correctedYaw;
-			smoothZ = (1 - POSEALPHA) * smoothZ + POSEALPHA * currentZ;
-			smoothRoll = (1 - POSEALPHA) * smoothRoll + POSEALPHA * correctedRoll;
-
-
-			updateHeadState(smoothYaw, smoothPitch);
-			updateLeanState(smoothZ-offsetZ);
-			drawDirectionGrid(frameBgr);
-			updateTiltState(roll);
-
-			// Anzeige der korrigierten Werte
-			Imgproc.putText(frameBgr,
-					String.format("Yaw %.1f | Pitch %.1f (kalibriert)", smoothYaw, smoothPitch),
-					new Point(20, 30), Imgproc.FONT_HERSHEY_SIMPLEX, 0.7, new Scalar(0, 255, 0), 2
-			);
-		}
-
-		// Visuelles Feedback im Bild
-		Scalar color = (headState == HeadState.NEUTRAL) ? new Scalar(0, 255, 0) : new Scalar(0, 255, 255);
-
-		// Hintergrund-Box für bessere Lesbarkeit
-		Imgproc.rectangle(frameBgr, new Point(10, 70), new Point(250, 110), new Scalar(0, 0, 0), -1);
-
-		// Status-Text zeichnen
-		Imgproc.putText(
-				frameBgr,
-				"STATUS: " + headState.toString(),
-				new Point(20, 100),
-				Imgproc.FONT_HERSHEY_SIMPLEX,
-				0.8,
-				color,
-				2
-		);
-		Imgproc.putText(
-				frameBgr,
-				"LEAN: " + leanState.toString() + " (Z: " + String.format("%.1f", smoothZ - offsetZ) + ")",
-				new Point(20, 130),
-				Imgproc.FONT_HERSHEY_SIMPLEX,
-				0.6,
-				new Scalar(255, 255, 255),
-				2
-		);
-		Imgproc.putText(
-				frameBgr,
-				"TILT: " + tiltState.toString() + String.format(" (Roll: %.1f)", smoothRoll),
-				new Point(20, 160), // Eine Zeile tiefer als Lean
-				Imgproc.FONT_HERSHEY_SIMPLEX,
-				0.6,
-				new Scalar(200, 200, 0),
-				2
-		);
-		Imgproc.putText(
-				frameBgr,
-				String.format("Roll Raw: %.1f | Rel: %.1f | Thres: %.1f", roll, smoothRoll, dynamicRollThres),
-				new Point(20, 190),
-				Imgproc.FONT_HERSHEY_SIMPLEX, 0.5, new Scalar(255, 255, 255), 1
-		);
 
 	}
     public HeadState getHeadState(){return headState;}
@@ -697,8 +569,6 @@ public class FXController {
 
 		Size inputSize = frameBgr.size();
 		yunet.setInputSize(inputSize);
-
-
 		Mat faces = new Mat();
 		yunet.detect(frameBgr, faces); // Detektion auf dem kleinen Bild
 
@@ -721,8 +591,7 @@ public class FXController {
 		// f[12..13]: Linker Mundwinkel
 		// f[14]    : Confidence Score
 
-		double score = f[14];
-		if (score < 0.7) return; // Schwelle etwas senken für stabilere Drehung
+		if (f[14] < 0.7) return; // Schwelle etwas senken für stabilere Drehung
 
 		Point re = new Point(f[4], f[5]);  // Right Eye
 		Point le = new Point(f[6], f[7]);  // Left Eye
@@ -739,6 +608,7 @@ public class FXController {
 
 		estimatePoseFrom5Points(frameBgr, reSmooth, leSmooth, noSmooth, rmSmooth, lmSmooth);
 
+        double geoRoll = calculate2DRoll(reSmooth, leSmooth);
 		// Zeichnen zur Kontrolle
 		Imgproc.rectangle(frameBgr, new Point(f[0], f[1]), new Point(f[0] + f[2], f[1] + f[3]), new Scalar(0, 255, 0), 2);
 		Imgproc.circle(frameBgr, noSmooth, 3, new Scalar(0, 255, 0), -1);
@@ -754,11 +624,144 @@ public class FXController {
 		for(int i=0; i<5; i++) {
 			Imgproc.circle(frameBgr, pts[i], 4, colors[i], -1);
 		}
+
+        if (!isCalibrated) {
+            calibrationFramesCounter++;
+            sumYaw += rawYaw;
+            sumPitch += rawPitch;
+            sumZ += rawZ;
+            sumRoll += geoRoll;
+
+            // Dynamische Maxima finden (Abweichung vom aktuellen Schnitt)
+            double curRelYaw = Math.abs(rawYaw - (sumYaw / calibrationFramesCounter));
+            double curRelPitch = Math.abs(rawPitch - (sumPitch / calibrationFramesCounter));
+            double curRelRoll = Math.abs(geoRoll - (sumRoll / calibrationFramesCounter));
+
+            if (curRelYaw > maxObservedYaw) maxObservedYaw = curRelYaw;
+            if (curRelPitch > maxObservedPitch) maxObservedPitch = curRelPitch;
+            if (curRelRoll > maxObservedRoll) maxObservedRoll = curRelRoll;
+
+            drawCalibrationProgress(frameBgr);
+
+            if (calibrationFramesCounter >= MAX_CALIBRATION_FRAMES) {
+                offsetYaw = sumYaw / MAX_CALIBRATION_FRAMES;
+                offsetPitch = sumPitch / MAX_CALIBRATION_FRAMES;
+                offsetZ = sumZ / MAX_CALIBRATION_FRAMES;
+                offsetRoll = sumRoll / MAX_CALIBRATION_FRAMES;
+
+                // Schwellenwerte basierend auf der Bewegung während der Kalibrierung
+                // Wir nehmen 80% des Maximums, aber mindestens einen "Noise Floor"
+                dynamicYawThres = Math.max(8.0, maxObservedYaw * 0.8);
+                dynamicPitchThres = Math.max(6.0, maxObservedPitch * 0.8);
+                dynamicRollThres = Math.max(10.0, maxObservedRoll * 0.8);
+
+                smoothRoll = 0; smoothYaw = 0; smoothPitch = 0; smoothZ = 0;
+                isCalibrated = true;
+            }
+        } else {
+            // NORMALER BETRIEB
+            // Glättung der Differenzwerte
+            smoothYaw = (1 - POSEALPHA) * smoothYaw + POSEALPHA * (rawYaw - offsetYaw);
+            smoothPitch = (1 - POSEALPHA) * smoothPitch + POSEALPHA * (rawPitch - offsetPitch);
+            smoothZ = (1 - POSEALPHA) * smoothZ + POSEALPHA * (rawZ - offsetZ);
+            smoothRoll = (1 - POSEALPHA) * smoothRoll + POSEALPHA * (geoRoll - offsetRoll);
+
+            // States aktualisieren
+            updateHeadState(smoothYaw, smoothPitch);
+            updateLeanState(smoothZ);
+            updateTiltState(smoothRoll);
+
+            // Visualisierung
+            drawDirectionGrid(frameBgr);
+            drawStatusText(frameBgr);
+        }
+
+        // Gesicht und Punkte zeichnen (Kontrolle)
+        drawFaceMarkers(frameBgr, f, reSmooth, leSmooth, noSmooth, rmSmooth, lmSmooth);
 	}
 
-	private static boolean inside(Rect2d r, Point p) {
-		return p.x >= r.x && p.x <= r.x + r.width && p.y >= r.y && p.y <= r.y + r.height;
-	}
+
+    private double calculate2DRoll(Point re, Point le) {
+        if (re == null || le == null) return 0;
+        double dy = le.y - re.y;
+        double dx = le.x - re.x;
+        // Wir berechnen den Winkel der Augenlinie zur Horizontalen
+        return Math.toDegrees(Math.atan2(dy, dx));
+    }
+    private double calculate2DYaw(Point re, Point le, Point no) {
+        // Distanz Auge-Nase (Horizontal)
+        double distToRightEye = Math.abs(no.x - re.x);
+        double distToLeftEye = Math.abs(no.x - le.x);
+
+        // Verhältnis berechnen (Wertebereich ca. -1.0 bis 1.0)
+        // Ein Wert von 0 bedeutet "Nase ist mittig"
+        return (distToRightEye - distToLeftEye) / (distToRightEye + distToLeftEye) * 100.0;
+    }
+    private double calculate2DPitch(Point re, Point le, Point no, Point rm, Point lm) {
+        // Durchschnittliche Augenhöhe und Mundhöhe
+        double eyeY = (re.y + le.y) / 2.0;
+        double mouthY = (rm.y + lm.y) / 2.0;
+
+        // Wo liegt die Nase dazwischen?
+        double faceHeight = mouthY - eyeY;
+
+        // Verhältnis (Standardwert liegt meist bei ~0.4 - 0.5)
+        double ratio = (no.y - eyeY) / faceHeight;
+        // Wir normalisieren das auf einen Wert um 0 (Abweichung vom Standard)
+        return (ratio - 0.50) * 100.0;
+    }
+    private void drawCalibrationProgress(Mat frame) {
+        String msg = "KALIBRIERUNG: Kopf bewegen...";
+        Imgproc.putText(frame, msg, new Point(20, 130),
+                Imgproc.FONT_HERSHEY_SIMPLEX, 0.7, new Scalar(0, 165, 255), 2);
+
+        // Fortschrittsbalken (max 200 Pixel breit)
+        double progress = (double) calibrationFramesCounter / MAX_CALIBRATION_FRAMES;
+        Imgproc.rectangle(frame, new Point(20, 150),
+                new Point(20 + (progress * 200), 165), new Scalar(0, 255, 0), -1);
+        Imgproc.rectangle(frame, new Point(20, 150),
+                new Point(220, 165), new Scalar(255, 255, 255), 1);
+    }
+    private void drawStatusText(Mat frame) {
+        // Hintergrund-Box für Lesbarkeit
+        Imgproc.rectangle(frame, new Point(10, 10), new Point(280, 120), new Scalar(0, 0, 0), -1);
+
+        Scalar headColor = (headState == HeadState.NEUTRAL) ? new Scalar(0, 255, 0) : new Scalar(0, 255, 255);
+
+        Imgproc.putText(frame, "HEAD: " + headState, new Point(20, 40),
+                Imgproc.FONT_HERSHEY_SIMPLEX, 0.7, headColor, 2);
+        Imgproc.putText(frame, "TILT: " + tiltState, new Point(20, 70),
+                Imgproc.FONT_HERSHEY_SIMPLEX, 0.7, new Scalar(200, 200, 0), 2);
+        Imgproc.putText(frame, "LEAN: " + leanState, new Point(20, 100),
+                Imgproc.FONT_HERSHEY_SIMPLEX, 0.7, new Scalar(255, 255, 255), 2);
+
+        // Debug-Werte am unteren Rand
+        String debug = String.format("Y: %.1f | P: %.1f | R: %.1f | Z: %.1f",
+                smoothYaw, smoothPitch, smoothRoll, smoothZ);
+        Imgproc.putText(frame, debug, new Point(20, frame.rows() - 20),
+                Imgproc.FONT_HERSHEY_SIMPLEX, 0.5, new Scalar(0, 255, 255), 1);
+    }
+
+    private void drawFaceMarkers(Mat frame, float[] f, Point re, Point le, Point no, Point rm, Point lm) {        // Bounding Box
+        Imgproc.rectangle(frame, new Point(f[0], f[1]), new Point(f[0] + f[2], f[1] + f[3]), new Scalar(0, 255, 0), 1);
+
+        // Die 5 Punkte mit verschiedenen Farben zur Unterscheidung
+        Point[] pts = {re, le, no, rm, lm};
+        Scalar[] colors = {
+                new Scalar(255, 0, 0),   // RE: Blau
+                new Scalar(0, 0, 255),   // LE: Rot
+                new Scalar(0, 255, 0),   // NO: Grün
+                new Scalar(0, 255, 255), // RM: Gelb
+                new Scalar(255, 0, 255)  // LM: Magenta
+        };
+
+        for (int i = 0; i < pts.length; i++) {
+            if (pts[i] != null) {
+                Imgproc.circle(frame, pts[i], 4, colors[i], -1);
+            }
+        }
+    }
+
 
 	/**
 	 * Stop the acquisition from the camera and release all the resources
