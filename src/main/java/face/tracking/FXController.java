@@ -35,6 +35,8 @@ public class FXController {
     private Point rmSmooth = null;
 	private static final double LM_ALPHA = 0.35;
 
+	public static volatile FXController instance;
+
 	// Kopfhaltung
 	public enum HeadState {
 		NEUTRAL,
@@ -128,6 +130,7 @@ public class FXController {
 	private static final double Z_EXIT = 35.0;
 
 	protected void init() {
+		instance = this;
 		this.capture = new VideoCapture();
 		rvecPrev = new Mat();
 		tvecPrev = new Mat();
@@ -138,7 +141,7 @@ public class FXController {
 			yunet = FaceDetectorYN.create(modelPath, "", new Size(320, 240), 0.6f, 0.3f, 5000);
 			yunetReady = true;
 
-			findAvailableCameras();
+			//findAvailableCameras();
 		} catch (Exception e) {
 			yunetReady = false;
 			e.printStackTrace();
@@ -204,21 +207,30 @@ public class FXController {
 		}
 	}
 	private void updateTiltState(double relRoll) {
-		TiltState targetTilt = TiltState.NEUTRAL; // Standardmäßig immer Neutral
+		TiltState targetTilt = TiltState.NEUTRAL;
 
-		double currentThres = (tiltState != TiltState.NEUTRAL) ? (dynamicRollThres * 0.7) : dynamicRollThres;
+		// 1. Nur berechnen, wenn wir nicht zu weit gedreht sind
+		if (Math.abs(smoothYaw) <= 20.0) {
+			// Dynamischer Puffer gegen Cross-talk
+			double dynamicStabilityBuffer = Math.abs(smoothYaw) * 0.25;
+			double adjustedThres = dynamicRollThres + dynamicStabilityBuffer;
 
-		// Prüfung der Schwellen
-		if (relRoll < -currentThres) {
-			targetTilt = TiltState.LEFT;
-		} else if (relRoll > currentThres) {
-			targetTilt = TiltState.RIGHT;
+			// Hysterese für geschmeidiges Verlassen (Exit-Threshold)
+			if (tiltState != TiltState.NEUTRAL) {
+				adjustedThres *= 0.7;
+			}
+
+			if (relRoll < -adjustedThres) {
+				targetTilt = TiltState.LEFT;
+			} else if (relRoll > adjustedThres) {
+				targetTilt = TiltState.RIGHT;
+			}
 		}
+		// Wenn Math.abs(smoothYaw) > 20, bleibt targetTilt einfach NEUTRAL
 
-		// Nur bei echtem Wechsel reagieren
 		if (targetTilt != tiltState) {
 			tiltState = targetTilt;
-			System.out.println(">>> TILT GEÄNDERT: " + tiltState + " (Wert: " + String.format("%.2f", relRoll) + ")");
+			//System.out.println(">>> TILT GEÄNDERT: " + tiltState + " (RelRoll: " + String.format("%.2f", relRoll) + ")");
 		}
 	}
 
@@ -242,7 +254,7 @@ public class FXController {
 
 		if (targetLean != leanState) {
 			leanState = targetLean;
-			System.out.println(">>> LEAN STATE: " + leanState);
+			//System.out.println(">>> LEAN STATE: " + leanState);
 		}
 	}
 	private void drawLeanBar(Mat frame, double relZ) {
@@ -324,7 +336,7 @@ public class FXController {
 				this.cameraButton.setText("Stop Camera");
 			} else {
 				// log the error
-				System.err.println("Failed to open the camera connection...");
+				//System.err.println("Failed to open the camera connection...");
 			}
 		} else {
 			// the camera is not active at this point
@@ -374,7 +386,7 @@ public class FXController {
 		resetCalibration();
 
 		// Optional: Feedback in der Konsole oder auf dem Button
-		System.out.println("Kalibrierung manuell neu gestartet...");
+		//System.out.println("Kalibrierung manuell neu gestartet...");
 	}
 
 	private Mat grabFrame() {
@@ -394,7 +406,7 @@ public class FXController {
 
 			} catch (Exception e) {
 				// log the (full) error
-				System.err.println("Exception during the image elaboration: " + e);
+				//System.err.println("Exception during the image elaboration: " + e);
 			}
 		}
 		return frame;
@@ -548,7 +560,7 @@ public class FXController {
 				//dynamicRollThres = Math.max(10.0, maxObservedRoll * 0.75);
 
 				isCalibrated = true;
-				System.out.println(">>> DYNAMISCHE SCHWELLEN: Yaw: " + dynamicYawThres + " Pitch: " + dynamicPitchThres);
+				//System.out.println(">>> DYNAMISCHE SCHWELLEN: Yaw: " + dynamicYawThres + " Pitch: " + dynamicPitchThres);
 			}
 		}else {
 			// NORMALER BETRIEB
@@ -762,7 +774,7 @@ public class FXController {
 			catch (InterruptedException e)
 			{
 				// log any exception
-				System.err.println("Exception in stopping the frame capture, trying to release the camera now... " + e);
+				//System.err.println("Exception in stopping the frame capture, trying to release the camera now... " + e);
 			}
 		}
 		if (this.capture.isOpened())

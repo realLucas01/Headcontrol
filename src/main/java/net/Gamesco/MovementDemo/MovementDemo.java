@@ -63,13 +63,26 @@ public class MovementDemo {
 
         //Player only walks when previously set Item is in Hand and the Player is on the ground(or else we reeeeally accelerate)
         if((event.player.isHolding(test))&&(event.player.onGround())){
-            if(testBool)  {
-                testBool = false;
-                StartFaceTracking.main();
-            }
+        	if (testBool) {
+        	    testBool = false;
+        	    Thread trackingThread = new Thread(() -> {
+        	        try {
+        	            // Hier wird die JavaFX Application gestartet
+        	            StartFaceTracking.main(); 
+        	        } catch (Exception e) {
+        	            e.printStackTrace();
+        	        }
+        	    });
+        	    trackingThread.setName("FaceTracking-Thread");
+        	    trackingThread.start();
+        	}
+            controller = FXController.instance;
+
+
+
             if(controller!= null){
                 currentHeadState = controller.getHeadState();
-                System.out.println(">>> BESTÄTIGTER STATUS: " + currentHeadState);
+                System.out.println(">>> BESTÄTIGTER STATUS2: " + currentHeadState);
             }
 
             //Make the player walk forward in standard walking speed.
