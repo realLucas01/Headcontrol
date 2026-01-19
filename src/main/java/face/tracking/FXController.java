@@ -633,6 +633,8 @@ public class FXController {
 
 	}
     public HeadState getHeadState(){return headState;}
+	public LeanState getLeanState(){return leanState;}
+	public TiltState getTiltState(){return tiltState;}
 
 	/**
 	 * Reset der Kalibrierung

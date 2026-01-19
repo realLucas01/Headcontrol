@@ -33,13 +33,9 @@ public class MovementDemo {
     public static final String MOD_ID = "movementdemo";
     // Directly reference a slf4j logger
     public static final Logger LOGGER = LogUtils.getLogger();
-    public FXController.HeadState currentHeadState;
     public FXController controller;
 
-    public boolean testBool =true;
-
-    public MovementDemo(FMLJavaModLoadingContext context)
-    {
+    public MovementDemo(FMLJavaModLoadingContext context) {
         IEventBus modEventBus = context.getModEventBus();
 
         // Register the commonSetup method for modloading
@@ -55,90 +51,133 @@ public class MovementDemo {
 
 
     @SubscribeEvent
-    public void playerTick(TickEvent.PlayerTickEvent event)
-    {
-
-        //Sets first Item in Inventory(after position) as Item that triggers the automatic walking(Still trying to understand how to specify Items....)
-        Item test = event.player.getInventory().items.getFirst().getItem();
-
-        //Player only walks when previously set Item is in Hand and the Player is on the ground(or else we reeeeally accelerate)
-        if((event.player.isHolding(test))&&(event.player.onGround())){
-        	if (testBool) {
-        	    testBool = false;
-        	    Thread trackingThread = new Thread(() -> {
-        	        try {
-        	            // Hier wird die JavaFX Application gestartet
-        	            StartFaceTracking.main(); 
-        	        } catch (Exception e) {
-        	            e.printStackTrace();
-        	        }
-        	    });
-        	    trackingThread.setName("FaceTracking-Thread");
-        	    trackingThread.start();
-        	}
-            controller = FXController.instance;
-
-
-
-            if(controller!= null){
-                currentHeadState = controller.getHeadState();
-                System.out.println(">>> BESTÄTIGTER STATUS2: " + currentHeadState);
-            }
-
-            //Make the player walk forward in standard walking speed.
-            event.player.moveRelative(0.1f,new Vec3(0,0,0.5f));
-            //KeyMapping.click();
-            //new KeyboardInput(KeyMapping.click(key_up));
-        }
-        //adjust to high speed when Jumping
-        else if((event.player.isHolding(test))&&!(event.player.onGround())){
-            event.player.moveRelative(0.1f,new Vec3(0,0,0.15f));
-
-
-        }
-
+    public void playerTick(TickEvent.PlayerTickEvent event) {
         //Fix sprint Button not working when walking forward
-        if((event.player.isHolding(test))&&(event.player.isSprinting())){
+        if(event.player.isSprinting()){
             //Make the player walk forward in standard walking speed.
             event.player.moveRelative(0.1f,new Vec3(0,0,1));
         }
+        //set controller
+        controller = FXController.instance;
 
-        //Player only looks up when crouching
-        if (event.player.isCrouching()){
-            //Make the Player look up, although still quite "stuttery"
-            event.player.setXRot(event.player.getXRot()-0.2f);
+        //Works if OpenCV is started properly
+        if (controller != null) {
+            //controlls where player looks
+            System.out.println("JA");
+            switch (controller.getHeadState()) {
+                case UP:
+                    event.player.setXRot(event.player.getXRot() - 0.6f);
+                    break;
+                case DOWN:
+                    event.player.setXRot(event.player.getXRot() + 0.6f);
+                    break;
+                case LEFT:
+                    event.player.setYRot(event.player.getYRot() - 0.6f);
+                    break;
+                case RIGHT:
+                    event.player.setYRot(event.player.getYRot() + 0.6f);
+                    break;
+            }
+            //controls if player walks forwards or backwards
+            switch (controller.getLeanState()){
+                case FORWARD:
+                    if(event.player.onGround()){
+                        //Make the player walk backwards in standard walking speed.
+                        event.player.moveRelative(0.1f,new Vec3(0,0,0.5f));
+                    }
+                    //adjust to high speed when Jumping
+                    else if(!event.player.onGround()){
+                        event.player.moveRelative(0.1f,new Vec3(0,0,0.15f));
+                    }
+                    break;
+                case BACKWARD:
+                    if(event.player.onGround()){
+                        //Make the player walk backwards in standard walking speed.
+                        event.player.moveRelative(0.1f,new Vec3(0,0,-0.5f));
+                        //KeyMapping.click();
+                        //new KeyboardInput(KeyMapping.click(key_up));
+                    }
+                    //adjust to high speed when Jumping
+                    else if(!event.player.onGround()){
+                        event.player.moveRelative(0.1f,new Vec3(0,0,-0.15f));
+                    }
+                    break;
+                case NEUTRAL:
+                    break;
+            }
+            //controlls if Player walks to the left or to the right
+            switch (controller.getTiltState()){
+                case LEFT:
+                    if(event.player.onGround()){
+                        //Make the player walk to the left in standard walking speed.
+                        event.player.moveRelative(0.1f,new Vec3(0.5f,0,0));
+                        //KeyMapping.click();
+                        //new KeyboardInput(KeyMapping.click(key_up));
+                    }
+                    //adjust to high speed when Jumping
+                    else if(!event.player.onGround()){
+                        event.player.moveRelative(0.1f,new Vec3(0.15f,0,0));
+                    }
+                    break;
+                case RIGHT:
+                    if(event.player.onGround()){
+                        //Make the player walk to the right in standard walking speed.
+                        event.player.moveRelative(0.1f,new Vec3(-0.5f,0,0));
+                        //KeyMapping.click();
+                        //new KeyboardInput(KeyMapping.click(key_up));
+                    }
+                    //adjust to high speed when Jumping
+                    else if(!event.player.onGround()){
+                        event.player.moveRelative(0.1f,new Vec3(-0.15f,0,0));
+                    }
+                    break;
+                case NEUTRAL:
+                    break;
+            }
         }
-
-        if (Keybindings.INSTANCE.toggleActivationState.consumeClick()){
-            event.player.giveExperienceLevels(4);
-        }
-
     }
 
-    @SubscribeEvent
-    public void onKeyPress(InputEvent.InteractionKeyMappingTriggered event) {
-        System.out.println(event.getKeyMapping().getName());
-    }
-
-    private void commonSetup(final FMLCommonSetupEvent event)
-    {
+    private void commonSetup(final FMLCommonSetupEvent event) {
         // Some common setup code
         LOGGER.info("HELLO FROM COMMON SETUP");
     }
 
     // You can use SubscribeEvent and let the Event Bus discover methods to call
     @SubscribeEvent
-    public void onServerStarting(ServerStartingEvent event)
-    {
+    public void onServerStarting(ServerStartingEvent event) {
         // Do something when the server starts
         LOGGER.info("HELLO from server starting");
+    }
 
+    @SubscribeEvent
+    public void onKeyMappingPress(InputEvent.Key event) {
+        //Nur ausführen wenn unser Keybind gedrückt
+        if(Keybindings.INSTANCE.toggleActivationState.isDown()){
+            //Öffnen eines neuen Thread für OpenCV, da sonst der Client hängen bleibt oder die tps stirbt
+            Thread trackingThread = new Thread(() -> {
+                try {
+                    // Hier wird die JavaFX Application gestartet
+                    StartFaceTracking.main();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            });
+            trackingThread.setName("FaceTracking-Thread");
+            trackingThread.start();
+
+            /* Versuch den Thread korrekt zu schließen
+            if (!trackingThread.isAlive()){
+
+            } else if (trackingThread.isAlive()) {
+                trackingThread.interrupt();
+            }*/
+        }
     }
 
     // EventBusSubscriber is used to automatically register all static methods in the class annotated with @SubscribeEvent
     @Mod.EventBusSubscriber(modid = MOD_ID, bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
-    public static class ClientModEvents
-    {
+    public static class ClientModEvents {
+
         @SubscribeEvent
         public static void onClientSetup(FMLClientSetupEvent event)
         {
@@ -147,6 +186,7 @@ public class MovementDemo {
             LOGGER.info("MINECRAFT NAME >> {}", Minecraft.getInstance().getUser().getName());
         }
 
+        //Unseren Keybind beim EventBus registrieren
         @SubscribeEvent
         public static void registerKeys(RegisterKeyMappingsEvent event){
             event.register(Keybindings.INSTANCE.toggleActivationState);
