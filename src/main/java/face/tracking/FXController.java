@@ -5,6 +5,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.Label;
+
 import org.opencv.core.Mat;
 import org.opencv.videoio.VideoCapture;
 import org.opencv.objdetect.FaceDetectorYN;
@@ -76,6 +78,8 @@ public class FXController {
 	private Button resetButton;
 	@FXML
 	private ImageView originalFrame;
+	@FXML
+	private Label statusLabel;
 
 	private ScheduledExecutorService timer;
 	private VideoCapture capture;
@@ -332,6 +336,7 @@ public class FXController {
 
 				// update the button content
 				this.cameraButton.setText("Stop Camera");
+				if (statusLabel != null) statusLabel.setText("Running");
 			} else {
 				// log the error
 				//System.err.println("Failed to open the camera connection...");
@@ -341,6 +346,7 @@ public class FXController {
 			this.cameraActive = false;
 			// update again the button content
 			this.cameraButton.setText("Start Camera");
+			if (statusLabel != null) statusLabel.setText("Idle");
 
 			// stop the timer
 			this.stopAcquisition();
@@ -507,6 +513,21 @@ public class FXController {
     public HeadState getHeadState(){return headState;}
 	public LeanState getLeanState(){return leanState;}
 	public TiltState getTiltState(){return tiltState;}
+
+	
+	/* ========   Werte für Minecraft-HUD   ======== */
+
+	// Links / Rechts (Yaw)
+	public double getUiYaw() {return smoothYaw;}
+	// Hoch / Runter (Pitch)
+	public double getUiPitch() {return smoothPitch;}
+	// Vor / Zurück (Lean)
+	// NEGATIV = nach vorne lehnen (wie in deinem OpenCV-Code)
+	public double getUiRelZ() {return smoothZ - offsetZ;}
+	// HUD nur anzeigen, wenn Tracking aktiv ist
+	public boolean isCameraActive() {return cameraActive;}
+	// Für UI-Farbe / Warnung (z.B. rot solange nicht kalibriert)
+	public boolean isCalibrated() {return isCalibrated;}
 
 	/**
 	 * Reset der Kalibrierung
