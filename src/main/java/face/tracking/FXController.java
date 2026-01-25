@@ -35,7 +35,7 @@ public class FXController {
 	// Variablen für Glättung
 	private double smoothYaw = 0;
     private double smoothPitch = 0;
-	private static final double POSEALPHA = 0.15;
+	private static final double POSEALPHA = 0.4;
 	private Point leSmooth = null;
     private Point reSmooth = null;
     private Point noSmooth = null;
@@ -187,37 +187,61 @@ public class FXController {
 	 * Aktualisierung Kopfzustand anhand Yaw/Pitch Werten
 	 */
 	private void updateHeadState(double yaw, double pitch) {
-		//  Schwellenwerte bestimmen
-        double yawThres = 8.0;
-        double pitchThres = 5.0;
+		// 1. Dynamische Schwellenwerte aus der Kalibrierung nutzen
+		double baseYawThres = this.dynamicYawThres;
+		double basePitchThres = this.dynamicPitchThres;
 
-        boolean isLeft  = yaw < -dynamicYawThres;
-        boolean isRight = yaw > dynamicYawThres;
-        boolean isUp    = pitch < -dynamicPitchThres; // Nase näher an Augen
-        boolean isDown  = pitch > dynamicPitchThres;  // Nase näher an Mund
+		// 2. Asymmetrie-Modifikatoren
+		// DOWN muss deutlich stärker sein (z.B. Faktor 2.2),
+		// während UP/LEFT/RIGHT sensibel bleiben (Faktor 1.0 - 1.2).
 
-		// Ziel-Zustand ermitteln
+
+		if (tiltState!=TiltState.NEUTRAL) {
+			headState = HeadState.NEUTRAL;
+			holdCounter = 0;
+			return; // Methode hier beenden, keine weitere Prüfung
+		}
+		// 3. Zustands-Booleans mit den gewichteten Schwellenwerten berechnen
+		boolean isLeft  = yaw < -(baseYawThres);
+		boolean isRight = yaw >  (baseYawThres);
+		boolean isUp    = pitch < -(basePitchThres);   // Nase nach oben
+		boolean isDown  = pitch >  (basePitchThres); // Nase nach unten (unempfindlicher)
+
+		// 4. Ziel-Zustand (TargetState) ermitteln
 		HeadState targetState = HeadState.NEUTRAL;
-        if (isLeft && isUp)         targetState = HeadState.LEFT_UP;
-        else if (isLeft && isDown)  targetState = HeadState.LEFT_DOWN;
-        else if (isRight && isUp)   targetState = HeadState.RIGHT_UP;
-        else if (isRight && isDown) targetState = HeadState.RIGHT_DOWN;
-        else if (isLeft)            targetState = HeadState.LEFT;
-        else if (isRight)           targetState = HeadState.RIGHT;
-        else if (isUp)              targetState = HeadState.UP;
-        else if (isDown)            targetState = HeadState.DOWN;
 
-        // Bestätigung über 3 Frames für Stabilität
-        if (targetState != headState) {
-            if (++holdCounter >= 3) {
-                headState = targetState;
-                holdCounter = 0;
-            }
-        } else {
-            holdCounter = 0;
-        }
-    }
+		// Diagonale zuerst (da sie spezifischer sind)
+		if (isLeft && isUp)         targetState = HeadState.LEFT_UP;
+		else if (isLeft && isDown)  targetState = HeadState.LEFT_DOWN;
+		else if (isRight && isUp)   targetState = HeadState.RIGHT_UP;
+		else if (isRight && isDown) targetState = HeadState.RIGHT_DOWN;
+			// Dann die Hauptrichtungen
+		else if (isLeft)            targetState = HeadState.LEFT;
+		else if (isRight)           targetState = HeadState.RIGHT;
+		else if (isUp)              targetState = HeadState.UP;
+		else if (isDown && leanState == LeanState.NEUTRAL ) targetState = HeadState.DOWN;
+
+		// 5. Stabilitäts-Check (HoldCounter)
+		// Wenn du die Reaktion NOCH schneller willst, senke den Counter von 3 auf 2.
+		if (targetState != headState) {
+			if (++holdCounter >= 3) {
+				headState = targetState;
+				holdCounter = 0;
+			}
+		} else {
+			holdCounter = 0;
+		}
+	}
+
 	private void updateTiltState(double relRoll) {
+
+		if (headState == HeadState.LEFT || headState == HeadState.RIGHT ||
+				headState == HeadState.LEFT_UP || headState == HeadState.LEFT_DOWN ||
+				headState == HeadState.RIGHT_UP || headState == HeadState.RIGHT_DOWN) {
+
+			this.tiltState = TiltState.NEUTRAL;
+			return;
+		}
 		TiltState targetTilt = TiltState.NEUTRAL;
 
         // Hysterese: 100% zum Eintreten, 70% zum Verlassen
@@ -238,13 +262,17 @@ public class FXController {
 
     private void updateLeanState(double relZ) {
         LeanState targetLean = LeanState.NEUTRAL;
+		if (tiltState != TiltState.NEUTRAL) {
+			this.leanState = LeanState.NEUTRAL;
+			return;
+		}
 
         // 3D-Z-Werte sind grober. 40-50 Einheiten sind ein guter Schwellenwert.
         double thresh = 45.0;
 
         // relZ = smoothZ - offsetZ
         // Wenn relZ NEGATIV ist, ist der aktuelle Abstand kleiner als der Kalibrierungsabstand -> FORWARD
-        if (relZ < -thresh) {
+        if (relZ < -thresh ) {
             targetLean = LeanState.FORWARD;
         }
         // Wenn relZ POSITIV ist, bist du weiter weg -> BACKWARD
@@ -252,7 +280,7 @@ public class FXController {
             targetLean = LeanState.BACKWARD;
         }
 
-        if (targetLean != leanState) {
+        if (targetLean != leanState ) {
             leanState = targetLean;
         }
     }
@@ -407,6 +435,7 @@ public class FXController {
 				// if the frame is not empty, process it
 				if (!frame.empty()) {
 					// face detection
+					Imgproc.resize(frame, new Mat(), new Size(320,240));
 					this.detectAndDisplay(frame);
 				}
 
@@ -676,9 +705,13 @@ public class FXController {
             smoothRoll = (1 - POSEALPHA) * smoothRoll + POSEALPHA * (geoRoll - offsetRoll);
 
             // States aktualisieren
-            updateHeadState(smoothYaw, smoothPitch);
-            updateLeanState(smoothZ);
-            updateTiltState(smoothRoll);
+			updateTiltState(smoothRoll);
+
+
+			updateLeanState(smoothZ);
+
+
+			updateHeadState(smoothYaw, smoothPitch);
 
             // Visualisierung
             drawDirectionGrid(frameBgr);
