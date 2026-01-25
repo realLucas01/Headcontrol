@@ -20,6 +20,6 @@ public final class Keybindings {
             "key." + MovementDemo.MOD_ID + ".toggle_activation_state",
             KeyConflictContext.IN_GAME,
             InputConstants.getKey(InputConstants.KEY_B, -1),
-            KeyMapping.CATEGORY_GAMEPLAY
+            "key.categories.headcontrol"
     );
 }
