@@ -19,7 +19,7 @@ public class StartFaceTracking extends Application {
 
         try
         {
-            OpenCV.loadLocally(); // oder loadShared()
+            OpenCV.loadLocally();
 
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/FirstFX.fxml"));
             Parent root = loader.load();
@@ -29,14 +29,12 @@ public class StartFaceTracking extends Application {
             //FXMLLoader loader = new FXMLLoader(getClass().getResource("/FirstFX.fxml"));
             //BorderPane root = (BorderPane) loader.load();
             // create and style a scene
-            Scene scene = new Scene(root, 1050, 620);
-            // CSS laden (liegt in src/main/resources)
-            scene.getStylesheets().add(
-                StartFaceTracking.class.getResource("/ui-dark.css").toExternalForm()
-            );
+            Scene scene = new Scene(root,800, 600);
             // scene
             primaryStage.setTitle("Face Detection");
+
             primaryStage.setScene(scene);
+
             // show the GUI
             primaryStage.show();
 
@@ -45,12 +43,8 @@ public class StartFaceTracking extends Application {
             controller.init();
 
             // set the proper behavior on closing the application
-            primaryStage.setOnCloseRequest((new EventHandler<WindowEvent>() {
-                public void handle(WindowEvent we)
-                {
-                    controller.setClosed();
-                }
-            }));
+            primaryStage.setOnCloseRequest(we -> controller.setClosed());
+
         }
         catch (Exception e)
         {

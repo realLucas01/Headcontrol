@@ -1,92 +1,28 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.geometry.Insets?>
+<?import javafx.geometry.*?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.*?>
+<?import javafx.scene.image.*?>
 
-<BorderPane xmlns="http://javafx.com/javafx/17"
-            xmlns:fx="http://javafx.com/fxml/1"
-            fx:controller="face.tracking.FXController"
-            prefWidth="980" prefHeight="620"
-            styleClass="root">
+<StackPane xmlns:fx="http://javafx.com/fxml" fx:controller="face.tracking.FXController" style="-fx-background-color: black;">
+	<children>
+		<ImageView fx:id="originalFrame" preserveRatio="true" />
 
-    <!-- ================= HEADER ================= -->
-    <top>
-        <HBox alignment="CENTER_LEFT"
-              spacing="12"
-              styleClass="header"
-              BorderPane.alignment="CENTER">
-            <Label text="Head Tracking" styleClass="title"/>
-            <Region HBox.hgrow="ALWAYS"/>
-            <Label text="JavaFX · OpenCV" styleClass="chip"/>
-        </HBox>
-    </top>
+		<HBox fx:id="buttonContainer" alignment="BOTTOM_CENTER" spacing="15.0" pickOnBounds="false">
+			<padding>
+				<Insets bottom="20.0" />
+			</padding>
+			<children>
+				<Button fx:id="cameraButton" text="Start Camera" onAction="#startCamera"
+						style="-fx-background-color: rgba(255,255,255,0.7); -fx-text-fill: black; -fx-background-radius: 15; -fx-font-weight: bold;" />
 
-    <!-- ================= CONTENT ================= -->
-    <center>
-        <BorderPane styleClass="content">
+				<Button fx:id="resetButton" text="Kalibrieren" onAction="#handleResetCalibration"
+						style="-fx-background-color: rgba(255,255,255,0.7); -fx-text-fill: black; -fx-background-radius: 15; -fx-font-weight: bold;" />
 
-            <!-- ===== CAMERA PREVIEW ===== -->
-            <center>
-                <StackPane styleClass="preview">
-                    <ImageView fx:id="originalFrame"
-                               preserveRatio="true"
-                               smooth="true"
-                               fitWidth="720"
-                               fitHeight="480"/>
-                </StackPane>
-            </center>
-
-            <!-- ===== RIGHT CONTROL PANEL ===== -->
-            <right>
-                <VBox spacing="14"
-                      styleClass="panel"
-                      BorderPane.alignment="CENTER">
-
-                    <Label text="Controls" styleClass="sectionTitle"/>
-
-                    <!-- Camera selection -->
-                    <VBox spacing="6">
-                        <Label text="Camera" styleClass="muted"/>
-                        <ComboBox fx:id="cameraSelector"
-                                  prefWidth="220"/>
-                    </VBox>
-
-                    <Separator/>
-
-                    <!-- Start / Stop (Toggle handled by Controller) -->
-                    <Button fx:id="cameraButton"
-                            text="Start"
-                            onAction="#startCamera"
-                            maxWidth="Infinity"
-                            styleClass="primary"/>
-
-                    <!-- Calibration -->
-                    <Button fx:id="resetButton"
-                            text="Calibrate"
-                            onAction="#handleResetCalibration"
-                            maxWidth="Infinity"/>
-
-                    <Region VBox.vgrow="ALWAYS"/>
-
-                    <Label text="Tip: Toggle tracking in Minecraft via keybind"
-                           wrapText="true"
-                           styleClass="hint"/>
-                </VBox>
-            </right>
-
-            <!-- ===== STATUS BAR ===== -->
-            <bottom>
-                <HBox spacing="10"
-                      alignment="CENTER_LEFT"
-                      styleClass="statusbar"
-                      BorderPane.alignment="CENTER">
-                    <Label text="Status:" styleClass="muted"/>
-                    <Label text="Idle" fx:id="statusLabel" styleClass="statusText"/>
-                </HBox>
-            </bottom>
-
-        </BorderPane>
-    </center>
-</BorderPane>
+				<ComboBox fx:id="cameraSelector" visible="false" managed="false" />
+			</children>
+		</HBox>
+	</children>
+</StackPane>
