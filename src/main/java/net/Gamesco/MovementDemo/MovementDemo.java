@@ -55,11 +55,6 @@ public class MovementDemo {
     @SubscribeEvent
     public void playerTick(TickEvent.PlayerTickEvent event) {
         if (!HeadControlState.isEnabled()) return;
-        //Fix sprint Button not working when walking forward
-        if(event.player.isSprinting()){
-            //Make the player walk forward in standard walking speed.
-            event.player.moveRelative(0.1f,new Vec3(0,0,1));
-        }
         //set controller
         if (controller == null) {
             controller = FXController.instance;
@@ -70,16 +65,16 @@ public class MovementDemo {
            //System.out.println("JA");
             switch (controller.getHeadState()) {
                 case UP:
-                    event.player.setXRot(event.player.getXRot() - 0.6f);
+                    for(int i=0; i <=16 ;i++){event.player.setXRot(event.player.getXRot() - 0.05f);}
                     break;
                 case DOWN:
-                    event.player.setXRot(event.player.getXRot() + 0.6f);
+                    for(int i=0; i <=16 ;i++){event.player.setXRot(event.player.getXRot() + 0.05f);}
                     break;
                 case LEFT:
-                    event.player.setYRot(event.player.getYRot() - 0.6f);
+                    for(int i=0; i <=16 ;i++){event.player.setYRot(event.player.getYRot() - 0.05f);}
                     break;
                 case RIGHT:
-                    event.player.setYRot(event.player.getYRot() + 0.6f);
+                    for(int i=0; i <=16 ;i++){event.player.setYRot(event.player.getYRot() + 0.05f);}
                     break;
             }
             //controls if player walks forwards or backwards
