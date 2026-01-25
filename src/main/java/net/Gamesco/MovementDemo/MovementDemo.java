@@ -58,12 +58,13 @@ public class MovementDemo {
             event.player.moveRelative(0.1f,new Vec3(0,0,1));
         }
         //set controller
-        controller = FXController.instance;
-
+        if (controller == null) {
+            controller = FXController.instance;
+        }
         //Works if OpenCV is started properly
         if (controller != null) {
             //controlls where player looks
-            System.out.println("JA");
+           //System.out.println("JA");
             switch (controller.getHeadState()) {
                 case UP:
                     event.player.setXRot(event.player.getXRot() - 0.6f);

@@ -1,10 +1,12 @@
 package face.tracking;
 
+import javafx.event.ActionEvent;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import javafx.scene.control.ComboBox;
+import javafx.scene.layout.HBox;
 import org.opencv.core.Mat;
 import org.opencv.videoio.VideoCapture;
 import org.opencv.objdetect.FaceDetectorYN;
@@ -77,6 +79,9 @@ public class FXController {
 	@FXML
 	private ImageView originalFrame;
 
+	@FXML
+	private HBox buttonContainer;
+
 	private ScheduledExecutorService timer;
 	private VideoCapture capture;
 	private boolean cameraActive;
@@ -140,6 +145,7 @@ public class FXController {
 		rvecPrev = new Mat();
 		tvecPrev = new Mat();
 
+
 		try {
 			// Modell laden
 			String modelPath = extractResourceToTemp("/models/face_detection_yunet_2023mar.onnx", ".onnx");
@@ -152,8 +158,10 @@ public class FXController {
 			e.printStackTrace();
 			cameraButton.setDisable(true);
 		}
-		cameraSelector.getItems().addAll("Kamera 0", "Kamera 1", "Kamera 2");
-		cameraSelector.getSelectionModel().selectFirst(); // Standardmäßig Index 0
+		if (cameraSelector.getItems().isEmpty()) {
+			cameraSelector.getItems().addAll("Kamera 0", "Kamera 1", "Kamera 2");
+		}
+		cameraSelector.getSelectionModel().selectFirst();
 	}
 	//Glättung skalierte Punkte
 	private Point ema(Point prev, Point cur, double a) {
@@ -301,12 +309,12 @@ public class FXController {
 		Scalar pointerColor = (headState == HeadState.NEUTRAL) ? new Scalar(0, 255, 0) : new Scalar(0, 0, 255);
 		Imgproc.circle(frame, new Point(pointerX, pointerY), 6, pointerColor, -1);
 
-		drawLeanBar(frame, smoothZ - offsetZ);
+		drawLeanBar(frame, smoothZ );
 	}
 
 
 	@FXML
-	protected void startCamera() {
+	protected void startCamera(javafx.event.ActionEvent actionEvent) {
 		if (!this.cameraActive) {
 			// start the video capture
 			int selectedIndex = cameraSelector.getSelectionModel().getSelectedIndex();
@@ -325,6 +333,7 @@ public class FXController {
                     // convert and show the frame
                     Image imageToShow = Utils.mat2Image(frame);
                     updateImageView(originalFrame, imageToShow);
+					frame.release();
                 };
 
 				this.timer = Executors.newSingleThreadScheduledExecutor();
@@ -379,8 +388,7 @@ public class FXController {
 	}
 
 	@FXML
-	protected void handleResetCalibration() {
-		// Ruft deine bestehende Logik auf
+	protected void handleResetCalibration(javafx.event.ActionEvent actionEvent) {
 		resetCalibration();
 
 		// Optional: Feedback in der Konsole oder auf dem Button
@@ -404,6 +412,7 @@ public class FXController {
 
 			} catch (Exception e) {
 				// log the (full) error
+				if (!frame.empty()) frame.release();
 				//System.err.println("Exception during the image elaboration: " + e);
 			}
 		}
@@ -678,6 +687,7 @@ public class FXController {
 
         // Gesicht und Punkte zeichnen (Kontrolle)
         drawFaceMarkers(frameBgr, f, reSmooth, leSmooth, noSmooth, rmSmooth, lmSmooth);
+		faces.release();
 	}
 
 
