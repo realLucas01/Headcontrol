@@ -22,9 +22,11 @@ import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+import net.Gamesco.MovementDemo.client.HeadControlState;
 import org.slf4j.Logger;
 import face.tracking.StartFaceTracking;
 import face.tracking.FXController;
+
 
 // The value here should match an entry in the META-INF/mods.toml file
 @Mod(MovementDemo.MOD_ID)
@@ -52,6 +54,7 @@ public class MovementDemo {
 
     @SubscribeEvent
     public void playerTick(TickEvent.PlayerTickEvent event) {
+        if (!HeadControlState.isEnabled()) return;
         //Fix sprint Button not working when walking forward
         if(event.player.isSprinting()){
             //Make the player walk forward in standard walking speed.
@@ -152,6 +155,7 @@ public class MovementDemo {
 
     @SubscribeEvent
     public void onKeyMappingPress(InputEvent.Key event) {
+        if (!HeadControlState.isEnabled()) return;
         //Nur ausführen wenn unser Keybind gedrückt
         if(Keybindings.INSTANCE.toggleActivationState.isDown()){
             //Öffnen eines neuen Thread für OpenCV, da sonst der Client hängen bleibt oder die tps stirbt

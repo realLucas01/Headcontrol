@@ -7,6 +7,9 @@ import java.util.concurrent.TimeUnit;
 
 import javafx.scene.control.ComboBox;
 import javafx.scene.layout.HBox;
+import javafx.scene.control.Label;
+import net.Gamesco.MovementDemo.client.HeadControlState;
+
 import org.opencv.core.Mat;
 import org.opencv.videoio.VideoCapture;
 import org.opencv.objdetect.FaceDetectorYN;
@@ -78,6 +81,8 @@ public class FXController {
 	private Button resetButton;
 	@FXML
 	private ImageView originalFrame;
+	@FXML
+	private Label statusLabel;
 
 	@FXML
 	private HBox buttonContainer;
@@ -369,6 +374,7 @@ public class FXController {
 
 				// update the button content
 				this.cameraButton.setText("Stop Camera");
+				if (statusLabel != null) statusLabel.setText("Running");
 			} else {
 				// log the error
 				//System.err.println("Failed to open the camera connection...");
@@ -378,6 +384,7 @@ public class FXController {
 			this.cameraActive = false;
 			// update again the button content
 			this.cameraButton.setText("Start Camera");
+			if (statusLabel != null) statusLabel.setText("Idle");
 
 			// stop the timer
 			this.stopAcquisition();
@@ -425,6 +432,7 @@ public class FXController {
 
 	private Mat grabFrame() {
 		Mat frame = new Mat();
+		if (!HeadControlState.isEnabled()) return frame;
 
 		// check if the capture is open
 		if (this.capture.isOpened()) {
@@ -546,6 +554,17 @@ public class FXController {
 	public LeanState getLeanState(){return leanState;}
 	public TiltState getTiltState(){return tiltState;}
 
+	
+	/* ========   Werte für Minecraft-HUD   ======== */
+
+	// Links / Rechts (Yaw)
+	public double getUiYaw() {return smoothYaw;}
+	// Hoch / Runter (Pitch)
+	public double getUiPitch() {return smoothPitch;}
+	// Vor / Zurück (Lean)
+	// NEGATIV = nach vorne lehnen (wie im OpenCV-Code)
+	public double getUiRelZ() {return smoothZ - offsetZ;}
+
 	/**
 	 * Reset der Kalibrierung
 	 */
@@ -604,6 +623,7 @@ public class FXController {
 
 	private void detectAndDisplay(Mat frameBgr) {
 		if (!yunetReady) return;
+		if (!HeadControlState.isEnabled()) return;
 
 		Size inputSize = frameBgr.size();
 		yunet.setInputSize(inputSize);
@@ -857,6 +877,72 @@ public class FXController {
 	@FXML
 	private ComboBox<String> cameraSelector;
 
+
+
+
+	
+
+
+	// ====== Bridge-API für Minecraft UI (ohne JavaFX) ======
+	
+	public synchronized boolean isCameraActive() {
+	    return cameraActive;
+	}
+	
+	public synchronized boolean isCalibrated() {
+	    return isCalibrated;
+	}
+	
+	/** Startet Kamera mit Index (0,1,2...) */
+	public synchronized boolean startCameraWithIndex(int cameraIndex) {
+	    if (cameraActive) return true;
+	
+	    if (this.capture == null) this.capture = new VideoCapture();
+	    if (rvecPrev == null) rvecPrev = new Mat();
+	    if (tvecPrev == null) tvecPrev = new Mat();
+	
+	    // DirectShow + Index (wie bei dir)
+	    this.capture.open(Videoio.CAP_DSHOW + cameraIndex);
+	
+	    if (this.capture.isOpened()) {
+	        this.cameraActive = true;
+	
+	        Runnable frameGrabber = () -> {
+	            Mat frame = grabFrame();
+	            Image imageToShow = Utils.mat2Image(frame);
+	            updateImageView(originalFrame, imageToShow);
+	        };
+	
+	        this.timer = Executors.newSingleThreadScheduledExecutor();
+	        this.timer.scheduleAtFixedRate(frameGrabber, 0, 33, TimeUnit.MILLISECONDS);
+	
+	        return true;
+	    } else {
+	        this.cameraActive = false;
+	        return false;
+	    }
+	}
+	
+	public synchronized void stopCameraNow() {
+	    if (!cameraActive) return;
+	    cameraActive = false;
+	    stopAcquisition();
+	}
+	
+	/** Kamera togglen */
+	public synchronized boolean toggleCamera(int cameraIndex) {
+	    if (cameraActive) {
+	        stopCameraNow();
+	        return false;
+	    } else {
+	        return startCameraWithIndex(cameraIndex);
+	    }
+	}
+	
+	/** Kalibrierung neu starten */
+	public synchronized void recalibrate() {
+	    resetCalibration();
+	}
 
 }
 
