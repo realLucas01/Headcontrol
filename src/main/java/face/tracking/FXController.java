@@ -563,7 +563,7 @@ public class FXController {
 	public double getUiPitch() {return smoothPitch;}
 	// Vor / Zurück (Lean)
 	// NEGATIV = nach vorne lehnen (wie im OpenCV-Code)
-	public double getUiRelZ() {return smoothZ - offsetZ;}
+	public double getUiRelZ() {return smoothZ;}
 
 	/**
 	 * Reset der Kalibrierung
