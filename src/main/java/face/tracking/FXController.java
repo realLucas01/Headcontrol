@@ -6,6 +6,7 @@ import java.util.concurrent.TimeUnit;
 
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import net.Gamesco.MovementDemo.client.HeadControlState;
 
 import org.opencv.core.Mat;
 import org.opencv.videoio.VideoCapture;
@@ -395,6 +396,7 @@ public class FXController {
 
 	private Mat grabFrame() {
 		Mat frame = new Mat();
+		if (!HeadControlState.isEnabled()) return frame;
 
 		// check if the capture is open
 		if (this.capture.isOpened()) {
@@ -522,12 +524,8 @@ public class FXController {
 	// Hoch / Runter (Pitch)
 	public double getUiPitch() {return smoothPitch;}
 	// Vor / Zurück (Lean)
-	// NEGATIV = nach vorne lehnen (wie in deinem OpenCV-Code)
+	// NEGATIV = nach vorne lehnen (wie im OpenCV-Code)
 	public double getUiRelZ() {return smoothZ - offsetZ;}
-	// HUD nur anzeigen, wenn Tracking aktiv ist
-	public boolean isCameraActive() {return cameraActive;}
-	// Für UI-Farbe / Warnung (z.B. rot solange nicht kalibriert)
-	public boolean isCalibrated() {return isCalibrated;}
 
 	/**
 	 * Reset der Kalibrierung
@@ -587,6 +585,7 @@ public class FXController {
 
 	private void detectAndDisplay(Mat frameBgr) {
 		if (!yunetReady) return;
+		if (!HeadControlState.isEnabled()) return;
 
 		Size inputSize = frameBgr.size();
 		yunet.setInputSize(inputSize);
@@ -835,6 +834,72 @@ public class FXController {
 	@FXML
 	private ComboBox<String> cameraSelector;
 
+
+
+
+	
+
+
+	// ====== Bridge-API für Minecraft UI (ohne JavaFX) ======
+	
+	public synchronized boolean isCameraActive() {
+	    return cameraActive;
+	}
+	
+	public synchronized boolean isCalibrated() {
+	    return isCalibrated;
+	}
+	
+	/** Startet Kamera mit Index (0,1,2...) */
+	public synchronized boolean startCameraWithIndex(int cameraIndex) {
+	    if (cameraActive) return true;
+	
+	    if (this.capture == null) this.capture = new VideoCapture();
+	    if (rvecPrev == null) rvecPrev = new Mat();
+	    if (tvecPrev == null) tvecPrev = new Mat();
+	
+	    // DirectShow + Index (wie bei dir)
+	    this.capture.open(Videoio.CAP_DSHOW + cameraIndex);
+	
+	    if (this.capture.isOpened()) {
+	        this.cameraActive = true;
+	
+	        Runnable frameGrabber = () -> {
+	            Mat frame = grabFrame();
+	            Image imageToShow = Utils.mat2Image(frame);
+	            updateImageView(originalFrame, imageToShow);
+	        };
+	
+	        this.timer = Executors.newSingleThreadScheduledExecutor();
+	        this.timer.scheduleAtFixedRate(frameGrabber, 0, 33, TimeUnit.MILLISECONDS);
+	
+	        return true;
+	    } else {
+	        this.cameraActive = false;
+	        return false;
+	    }
+	}
+	
+	public synchronized void stopCameraNow() {
+	    if (!cameraActive) return;
+	    cameraActive = false;
+	    stopAcquisition();
+	}
+	
+	/** Kamera togglen */
+	public synchronized boolean toggleCamera(int cameraIndex) {
+	    if (cameraActive) {
+	        stopCameraNow();
+	        return false;
+	    } else {
+	        return startCameraWithIndex(cameraIndex);
+	    }
+	}
+	
+	/** Kalibrierung neu starten */
+	public synchronized void recalibrate() {
+	    resetCalibration();
+	}
 
 }
 
