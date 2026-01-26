@@ -29,7 +29,11 @@ public class StartFaceTracking extends Application {
             //FXMLLoader loader = new FXMLLoader(getClass().getResource("/FirstFX.fxml"));
             //BorderPane root = (BorderPane) loader.load();
             // create and style a scene
-            Scene scene = new Scene(root,800, 600);
+            Scene scene = new Scene(root, 1050, 620);
+            // CSS laden (liegt in src/main/resources)
+            scene.getStylesheets().add(
+                    StartFaceTracking.class.getResource("/ui-dark.css").toExternalForm()
+            );
             // scene
             primaryStage.setTitle("Face Detection");
 
