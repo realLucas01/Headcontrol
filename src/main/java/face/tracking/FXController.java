@@ -1,12 +1,10 @@
 package face.tracking;
 
-import javafx.event.ActionEvent;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import javafx.scene.control.ComboBox;
-import javafx.scene.layout.HBox;
 import javafx.scene.control.Label;
 import net.Gamesco.MovementDemo.client.HeadControlState;
 
@@ -24,12 +22,19 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import org.opencv.videoio.Videoio;
 
+/**
+ * FXController steuert die Benutzeroberfläche und die Logik für das Face-Tracking
+ * Es nutzt OpenCV für die Bildverarbeitung und YuNet für die Gesichtserkennung
+ */
 public class FXController {
+	//YuNet Modell zur Gesichtserkennung
 	private FaceDetectorYN yunet;
 	private boolean yunetReady = false;
 
     // Rohwerte aus der 3D-Schätzung
-    private double rawYaw, rawPitch, rawZ;
+    private double rawYaw;
+    private double rawPitch;
+    private double rawZ;
 
     // Maximale Kalibrierungswerte (für dynamische Schwellen)
     private static final int MAX_CALIBRATION_FRAMES = 60; // 2 Sek bei 30 FPS
@@ -39,12 +44,14 @@ public class FXController {
 	private double smoothYaw = 0;
     private double smoothPitch = 0;
 	private static final double POSEALPHA = 0.4;
+
+	//gespeicherte gesichtspunkte
 	private Point leSmooth = null;
     private Point reSmooth = null;
     private Point noSmooth = null;
     private Point lmSmooth = null;
     private Point rmSmooth = null;
-	private static final double LM_ALPHA = 0.35;
+	private static final double LM_ALPHA = 0.35; //Glättung für die 2D Punkte
 
 	public static volatile FXController instance;
 
@@ -56,15 +63,15 @@ public class FXController {
 		RIGHT_UP, RIGHT_DOWN
 	}
 
-
+	// Vor-Rückwärtsbewegung
 	public enum LeanState{
 		FORWARD, BACKWARD, NEUTRAL
 	}
 
+	//Lehnungrichtung
 	public enum TiltState {
 		LEFT, RIGHT, NEUTRAL
 	}
-
 
 	private HeadState headState = HeadState.NEUTRAL; // Startposition
 	private LeanState leanState = LeanState.NEUTRAL;
@@ -73,8 +80,8 @@ public class FXController {
 
 	// Anzahl der Frames, die der Kopf in einer Position bleiben muss
 	private int holdCounter = 0;
-	private static final int HOLD_FRAMES = 3;
 
+	//FXML UI Elemente
 	@FXML
 	private Button cameraButton;
 	@FXML
@@ -84,31 +91,26 @@ public class FXController {
 	@FXML
 	private Label statusLabel;
 
-	@FXML
-	private HBox buttonContainer;
 
 	private ScheduledExecutorService timer;
 	private VideoCapture capture;
 	private boolean cameraActive;
+
+	//matrizen für Pose Stabilität, speichert die letzte bekannte Position
 	private Mat rvecPrev;
 	private Mat tvecPrev;
 	private boolean hasPrevPose = false;
 
-	// Diese werden nun während der Kalibrierung berechnet
+	// Schwellenwerte, die während der Kalibrierung dynamisch berechnet werden
 	private double dynamicYawThres = 15.0;   // Startwert (Fallback)
 	private double dynamicPitchThres = 12.0; // Startwert (Fallback)
-	private double dynamicZThresForward = 40.0;  // Standard-Fallback
-	private double dynamicZThresBackward = 40.0;
-	private double maxObservedForward = 0;
-	private double maxObservedBackward = 0;
 
-	// Exit-Werte bleiben proportional (z.B. 70% des Enter-Werts)
+	// faktor zum Verlassen eines Zustands
 	private static final double EXIT_FACTOR = 0.7;
 
 	// Variablen für die Suche nach den Maxima
 	private double maxObservedYaw = 0;
 	private double maxObservedPitch = 0;
-
 	private double offsetYaw = 0;
     private double offsetPitch = 0;
 	private boolean isCalibrated = false;
@@ -123,15 +125,6 @@ public class FXController {
 	private double sumZ = 0;
 	private double offsetZ = 0;
 
-	// 0.5 = sehr sensibel, 0.8 = eher stabil/anstrengend
-	private double leanSensitivity = 0.6;
-
-	// Verhindert das "Zappeln" zwischen den Zuständen
-	private static final double LEAN_EXIT_FACTOR = 0.55;
-
-	// Mindestbewegung in Einheiten (mm), damit überhaupt eine Kalibrierung zählt
-	private static final double MIN_Z_MOVEMENT = 15.0;
-
 	// Variablen für Roll (Neigen zur Schulter)
 	private double smoothRoll = 0;
 	private double sumRoll = 0;
@@ -140,10 +133,9 @@ public class FXController {
 	private double dynamicRollThres = 15.0; // Standard-Fallback
 
 
-	// Schwellenwerte für Vor/Zurück (muss experimentell bestimmt werden)
-	private static final double Z_ENTER = 50.0; // Abweichung um 50 Einheiten
-	private static final double Z_EXIT = 35.0;
-
+	/**
+	 * Initialisiert den Controller, lädt das KI-Modell und bereitet die Kamera vor
+	 */
 	protected void init() {
 		instance = this;
 		this.capture = new VideoCapture();
@@ -152,12 +144,11 @@ public class FXController {
 
 
 		try {
-			// Modell laden
+			// Extrahiert das ONNX-Modell aus den Ressourcen
 			String modelPath = extractResourceToTemp("/models/face_detection_yunet_2023mar.onnx", ".onnx");
+			// Erstellt den FaceDetector mit Input Größe
 			yunet = FaceDetectorYN.create(modelPath, "", new Size(320, 240), 0.6f, 0.3f, 5000);
 			yunetReady = true;
-
-			//findAvailableCameras();
 		} catch (Exception e) {
 			yunetReady = false;
 			e.printStackTrace();
@@ -168,7 +159,15 @@ public class FXController {
 		}
 		cameraSelector.getSelectionModel().selectFirst();
 	}
-	//Glättung skalierte Punkte
+
+	/**
+	 * Exponentieller gleitender Durschnitt (EMA)
+	 * Verhindert das Springen von 2D Punkten bei Bildrauschen
+	 * @param prev
+	 * @param cur
+	 * @param a Glättungsfaktor
+	 * @return
+	 */
 	private Point ema(Point prev, Point cur, double a) {
 		if (prev == null) return cur;
 		return new Point(
@@ -192,27 +191,22 @@ public class FXController {
 	 * Aktualisierung Kopfzustand anhand Yaw/Pitch Werten
 	 */
 	private void updateHeadState(double yaw, double pitch) {
-		// 1. Dynamische Schwellenwerte aus der Kalibrierung nutzen
+		// Dynamische Schwellenwerte aus der Kalibrierung nutzen
 		double baseYawThres = this.dynamicYawThres;
 		double basePitchThres = this.dynamicPitchThres;
-
-		// 2. Asymmetrie-Modifikatoren
-		// DOWN muss deutlich stärker sein (z.B. Faktor 2.2),
-		// während UP/LEFT/RIGHT sensibel bleiben (Faktor 1.0 - 1.2).
-
 
 		if (tiltState!=TiltState.NEUTRAL) {
 			headState = HeadState.NEUTRAL;
 			holdCounter = 0;
 			return; // Methode hier beenden, keine weitere Prüfung
 		}
-		// 3. Zustands-Booleans mit den gewichteten Schwellenwerten berechnen
+		// Zustands-Booleans mit den gewichteten Schwellenwerten berechnen
 		boolean isLeft  = yaw < -(baseYawThres);
 		boolean isRight = yaw >  (baseYawThres);
 		boolean isUp    = pitch < -(basePitchThres);   // Nase nach oben
-		boolean isDown  = pitch >  (basePitchThres); // Nase nach unten (unempfindlicher)
+		boolean isDown  = pitch >  (basePitchThres); // Nase nach unten
 
-		// 4. Ziel-Zustand (TargetState) ermitteln
+		// Ziel-Zustand (TargetState) ermitteln
 		HeadState targetState = HeadState.NEUTRAL;
 
 		// Diagonale zuerst (da sie spezifischer sind)
@@ -220,14 +214,13 @@ public class FXController {
 		else if (isLeft && isDown)  targetState = HeadState.LEFT_DOWN;
 		else if (isRight && isUp)   targetState = HeadState.RIGHT_UP;
 		else if (isRight && isDown) targetState = HeadState.RIGHT_DOWN;
-			// Dann die Hauptrichtungen
+		// Dann die Hauptrichtungen
 		else if (isLeft)            targetState = HeadState.LEFT;
 		else if (isRight)           targetState = HeadState.RIGHT;
 		else if (isUp)              targetState = HeadState.UP;
 		else if (isDown && leanState == LeanState.NEUTRAL ) targetState = HeadState.DOWN;
 
-		// 5. Stabilitäts-Check (HoldCounter)
-		// Wenn du die Reaktion NOCH schneller willst, senke den Counter von 3 auf 2.
+		// Stability-Check (HoldCounter)
 		if (targetState != headState) {
 			if (++holdCounter >= 3) {
 				headState = targetState;
@@ -238,8 +231,11 @@ public class FXController {
 		}
 	}
 
+	/**
+	 * Logik zur Bestimmung und Änderung des Lehnen States
+	 * @param relRoll
+	 */
 	private void updateTiltState(double relRoll) {
-
 		if (headState == HeadState.LEFT || headState == HeadState.RIGHT ||
 				headState == HeadState.LEFT_UP || headState == HeadState.LEFT_DOWN ||
 				headState == HeadState.RIGHT_UP || headState == HeadState.RIGHT_DOWN) {
@@ -265,6 +261,10 @@ public class FXController {
         tiltState = targetTilt;
     }
 
+	/**
+	 * Logik zur Bestimmung und Änderung des Vorwärts/Rückwärts States
+	 * @param relZ
+	 */
     private void updateLeanState(double relZ) {
         LeanState targetLean = LeanState.NEUTRAL;
 		if (tiltState != TiltState.NEUTRAL) {
@@ -275,33 +275,37 @@ public class FXController {
         // 3D-Z-Werte sind grober. 40-50 Einheiten sind ein guter Schwellenwert.
         double thresh = 45.0;
 
-        // relZ = smoothZ - offsetZ
         // Wenn relZ NEGATIV ist, ist der aktuelle Abstand kleiner als der Kalibrierungsabstand -> FORWARD
         if (relZ < -thresh ) {
             targetLean = LeanState.FORWARD;
         }
-        // Wenn relZ POSITIV ist, bist du weiter weg -> BACKWARD
+        // Wenn relZ POSITIV ist -> BACKWARD
         else if (relZ > thresh) {
             targetLean = LeanState.BACKWARD;
         }
-
         if (targetLean != leanState ) {
             leanState = targetLean;
         }
     }
 
+	/**
+	 * Zeichnet einen vertikalen Fortschrittsbalken für das Vor- und Zurücklehnen
+	 * @param frame
+	 * @param relZ
+	 */
+
     private void drawLeanBar(Mat frame, double relZ) {
-        int x = frame.cols() - 40;
+        int x = frame.cols() - 40; //Position am rechten Rand
         int yMid = frame.rows() / 2;
         int barHalfHeight = 100;
 
         // Hintergrund-Schiene (Dunkelgrau)
-        Imgproc.rectangle(frame, new Point(x, yMid - barHalfHeight), new Point(x + 10, yMid + barHalfHeight), new Scalar(50, 50, 50), -1);
+        Imgproc.rectangle(frame, new Point(x, yMid - (double)barHalfHeight), new Point((double)x + 10, (double)yMid + (double)barHalfHeight), new Scalar(50, 50, 50), -1);
 
         // Schwellenwert-Linien (Weiß)
         double threshPx = 45.0 * 0.8; // 45 Einheiten skaliert auf die Anzeige
-        Imgproc.line(frame, new Point(x - 5, yMid - threshPx), new Point(x + 15, yMid - threshPx), new Scalar(255, 255, 255), 1);
-        Imgproc.line(frame, new Point(x - 5, yMid + threshPx), new Point(x + 15, yMid + threshPx), new Scalar(255, 255, 255), 1);
+        Imgproc.line(frame, new Point((double)x - 5, yMid - threshPx), new Point((double)x + 15, yMid - threshPx), new Scalar(255, 255, 255), 1);
+        Imgproc.line(frame, new Point((double)x - 5, yMid + threshPx), new Point((double)x + 15, yMid + threshPx), new Scalar(255, 255, 255), 1);
 
         // Aktuelle Position: relZ ist NEGATIV bei FORWARD (Abstand wird kleiner)
         // Wir nehmen -relZ, damit die Kugel beim Vorlehnen nach OBEN geht
@@ -309,16 +313,21 @@ public class FXController {
         displayPos = Math.max(-barHalfHeight, Math.min(barHalfHeight, displayPos));
 
         Scalar color = (leanState == LeanState.NEUTRAL) ? new Scalar(0, 255, 0) : new Scalar(0, 255, 255);
-        Imgproc.circle(frame, new Point(x + 5, yMid + displayPos), 7, color, -1);
+        Imgproc.circle(frame, new Point((double)x + 5, yMid + displayPos), 7, color, -1);
     }
 
+	/**
+	 * Zeichnet ein Fadenkreuz-Gitter in das Bild
+	 * Die Grenzen des Gitters passen sich dynamisch an die Kalibrierung an
+	 * @param frame
+	 */
 	private void drawDirectionGrid(Mat frame) {
 		int w = frame.cols();
 		int h = frame.rows();
-		int cx = w / 2;
-		int cy = h / 2;
+		int cx = w / 2;//Bildmitte X
+		int cy = h / 2; //Bildmitte Y
 
-		double visualScale = 5.0;
+		double visualScale = 5.0; //Skalierung für die Visualisierung
 
 		// Gitter passt sich an die kalibrierten Grenzen an!
 		int dx = (int)(dynamicYawThres * visualScale);
@@ -334,6 +343,7 @@ public class FXController {
 		// Horizontale Linien (Oben/Unten Grenzen)
 		Imgproc.line(frame, new Point(0, cy - (double)dy), new Point(w, cy - (double)dy), gridColor, 1);
 		Imgproc.line(frame, new Point(0, cy + (double)dy), new Point(w, cy + (double)dy), gridColor, 1);
+
 		// Zeichne einen "Zielpunkt", der deine aktuelle Kopfneigung anzeigt
 		double pointerX = cx + (smoothYaw * visualScale);
 		double pointerY = cy + (smoothPitch * visualScale);
@@ -342,10 +352,14 @@ public class FXController {
 		Scalar pointerColor = (headState == HeadState.NEUTRAL) ? new Scalar(0, 255, 0) : new Scalar(0, 0, 255);
 		Imgproc.circle(frame, new Point(pointerX, pointerY), 6, pointerColor, -1);
 
+		// Lean-Balken (Vor/Zurück) zusätzlich zeichnen
 		drawLeanBar(frame, smoothZ );
 	}
 
-
+	/**
+	 * startet die kamera für den Bildstream
+	 * @param actionEvent
+	 */
 	@FXML
 	protected void startCamera(javafx.event.ActionEvent actionEvent) {
 		if (!this.cameraActive) {
@@ -353,7 +367,6 @@ public class FXController {
 			int selectedIndex = cameraSelector.getSelectionModel().getSelectedIndex();
 			this.capture.open(Videoio.CAP_DSHOW + selectedIndex);
 			cameraSelector.setDisable(true);
-
 
 			// is the video stream available?
 			if (this.capture.isOpened()) {
@@ -377,7 +390,6 @@ public class FXController {
 				if (statusLabel != null) statusLabel.setText("Running");
 			} else {
 				// log the error
-				//System.err.println("Failed to open the camera connection...");
 			}
 		} else {
 			// the camera is not active at this point
@@ -392,6 +404,11 @@ public class FXController {
 
 		}
 	}
+
+	/**
+	 * sucht die angeschlossenen Kameras des verwendeten Systems
+	 * OpenCv kann leider dabei, keine Kameranamen erkennen, daher nur Kamera 0, 1 und 2
+	 */
 	private void findAvailableCameras() {
 		// Liste leeren, falls sie schon Daten enthielt
 		cameraSelector.getItems().clear();
@@ -422,12 +439,13 @@ public class FXController {
 		}
 	}
 
+	/**
+	 * Kalibrierungsreset, zur neuen Kalibrierung
+	 * @param actionEvent
+	 */
 	@FXML
 	protected void handleResetCalibration(javafx.event.ActionEvent actionEvent) {
 		resetCalibration();
-
-		// Optional: Feedback in der Konsole oder auf dem Button
-		//System.out.println("Kalibrierung manuell neu gestartet...");
 	}
 
 	private Mat grabFrame() {
@@ -450,13 +468,13 @@ public class FXController {
 			} catch (Exception e) {
 				// log the (full) error
 				if (!frame.empty()) frame.release();
-				//System.err.println("Exception during the image elaboration: " + e);
 			}
 		}
 		return frame;
 	}
 
 	/**
+	 * Berechnet die Kopfpose (Drehung/Verschiebung) aus 5 Gesichtspunkten
 	 * Pose Schätzung aus 5 Gesichtspunkten:
 	 * - 2D Punkte aus YuNet: Augen, Nase, Mundwinkel
 	 * - 3D “Standard Face Model” Punkte
@@ -489,11 +507,11 @@ public class FXController {
         cameraMatrix.put(1, 1, focal);
         cameraMatrix.put(1, 2, center.y);
 
-		MatOfDouble distCoeffs = new MatOfDouble(0, 0, 0, 0);   // oder 5 Werte: 0,0,0,0,0
-
+		MatOfDouble distCoeffs = new MatOfDouble(0, 0, 0, 0);
 		Mat rvec = new Mat();
 		Mat tvec = new Mat();
 
+		//PnP Algorithms (Perspective n Point) zur Lösung der 3D position
 		boolean ok;
 		if (!hasPrevPose) {
 			// Start: EPNP (geht mit >=4 Punkten)
@@ -515,7 +533,6 @@ public class FXController {
 					true, Calib3d.SOLVEPNP_ITERATIVE
 			);
 		}
-		//if (!ok) return;
 
 		if (ok) {
 			rvecPrev = rvec.clone();
@@ -525,7 +542,7 @@ public class FXController {
             // Extrahiere Z-Distanz (Lean)
             this.rawZ = tvec.get(2, 0)[0];
 
-			// 1. Definiere Achsen-Endpunkte im 3D-Raum (Länge 100 Einheiten)
+			// Definiere Achsen-Endpunkte im 3D-Raum (Länge 100 Einheiten)
 			MatOfPoint3f axisPoints = new MatOfPoint3f(
 					new Point3(100, 0, 0),   // X-Achse (Rot) -> Rechts
 					new Point3(0, 100, 0),   // Y-Achse (Grün) -> Unten
@@ -537,19 +554,25 @@ public class FXController {
 
 			Point[] p = imagePointsProj.toArray();
 
-            // 2. Zeichne die Linien (X=Rot, Y=Grün, Z=Blau)
+            // Zeichne die Linien (X=Rot, Y=Grün, Z=Blau)
 			Imgproc.line(frameBgr, no, p[0], new Scalar(0, 0, 255), 3); // X-Achse
 			Imgproc.line(frameBgr, no, p[1], new Scalar(0, 255, 0), 3); // Y-Achse
 			Imgproc.line(frameBgr, no, p[2], new Scalar(255, 0, 0), 3); // Z-Achse
 
-            Mat R = new Mat();
-            Calib3d.Rodrigues(rvec, R);
-            double[] e = rotationMatrixToEuler(R);
+			//Rodrigues transformation: Rotationsvektor -> Rotationsmatrix
+            Mat rotationMatrix = new Mat();
+            Calib3d.Rodrigues(rvec, rotationMatrix);
+            double[] e = rotationMatrixToEuler(rotationMatrix); // Matrix -> Gradzahlen(Yaw, Pitch, Roll)
             this.rawPitch = e[0];
             this.rawYaw = e[1];
 		}
 
 	}
+
+	/**
+	 * getter Funktionen für die Übertragung der States nach Minecraft
+	 * @return
+	 */
     public HeadState getHeadState(){return headState;}
 	public LeanState getLeanState(){return leanState;}
 	public TiltState getTiltState(){return tiltState;}
@@ -568,7 +591,6 @@ public class FXController {
 	/**
 	 * Reset der Kalibrierung
 	 */
-
 	public void resetCalibration() {
 		isCalibrated = false;
 		calibrationFramesCounter = 0;
@@ -583,7 +605,6 @@ public class FXController {
 
 		// Maxima der dynamischen Kalibrierung zurücksetzen
 		maxObservedYaw = 0; maxObservedPitch = 0;
-		maxObservedForward = 0; maxObservedBackward = 0;
 
 		sumRoll = 0;
 		offsetRoll = 0;
@@ -599,28 +620,42 @@ public class FXController {
 		rmSmooth = null;
 	}
 
-	private static double[] rotationMatrixToEuler(Mat R) {
-		double r00 = R.get(0, 0)[0], r01 = R.get(0, 1)[0], r02 = R.get(0, 2)[0];
-		double r10 = R.get(1, 0)[0], r11 = R.get(1, 1)[0], r12 = R.get(1, 2)[0];
-		double r20 = R.get(2, 0)[0], r21 = R.get(2, 1)[0], r22 = R.get(2, 2)[0];
+	/**
+	 * Wandelt eine 3x3 Rotationsmatrix in Euler Winkel (pitch, Yaw, Roll) um
+	 * @param rotationMatrix
+	 * @return
+	 */
+	private static double[] rotationMatrixToEuler(Mat rotationMatrix) {
+		// extraktion der MAtrix Elemente
+		double r00 = rotationMatrix.get(0, 0)[0], r01 = rotationMatrix.get(0, 1)[0], r02 = rotationMatrix.get(0, 2)[0];
+		double r10 = rotationMatrix.get(1, 0)[0], r11 = rotationMatrix.get(1, 1)[0], r12 = rotationMatrix.get(1, 2)[0];
+		double r20 = rotationMatrix.get(2, 0)[0], r21 = rotationMatrix.get(2, 1)[0], r22 = rotationMatrix.get(2, 2)[0];
 
+		//Hilfsvariable zur Prüfung auf Singularität
 		double sy = Math.sqrt(r00 * r00 + r10 * r10);
 		boolean singular = sy < 1e-6;
 
-		double x, y, z;
+		double x;
+		double y;
+		double z;
 		if (!singular) {
-			x = Math.atan2(r21, r22);
-			y = Math.atan2(-r20, sy);
-			z = Math.atan2(r10, r00);
+			x = Math.atan2(r21, r22); //Pitch
+			y = Math.atan2(-r20, sy); //Yaw
+			z = Math.atan2(r10, r00); //Roll
 		} else {
+			//Sonderfall, blick nach oben oder unten
 			x = Math.atan2(-r12, r11);
 			y = Math.atan2(-r20, sy);
 			z = 0;
 		}
+		//Umrechnung von Radian in grad
 		return new double[]{x * 180 / Math.PI, y * 180 / Math.PI, z * 180 / Math.PI};
 	}
 
-
+	/**
+	 * Hauptverarbeitungsschleife pro Frame
+	 * @param frameBgr
+	 */
 	private void detectAndDisplay(Mat frameBgr) {
 		if (!yunetReady) return;
 		if (!HeadControlState.isEnabled()) return;
@@ -637,9 +672,9 @@ public class FXController {
 		}
 
 
-		// Bestes Gesicht finden
+		// extrahiere Daten des ersten erkannten Gesichts
 		float[] f = new float[faces.cols()];
-		faces.get(0, 0, f); // Vereinfacht: erstes Gesicht nehmen
+		faces.get(0, 0, f);
 
 		// f[0..3]  : Bounding Box (x, y, w, h)
 		// f[4..5]  : Rechtes Auge (aus Sicht der Kamera: links im Bild)
@@ -657,16 +692,17 @@ public class FXController {
 		Point rm = new Point(f[10], f[11]);// Right Mouth
 		Point lm = new Point(f[12], f[13]);// Left Mouth
 
-		// Glättung (EMA)
+		// Glättung (EMA) 2D Punkte
 		reSmooth = ema(reSmooth, re, LM_ALPHA);
 		leSmooth = ema(leSmooth, le, LM_ALPHA);
 		noSmooth = ema(noSmooth, no, LM_ALPHA);
 		rmSmooth = ema(rmSmooth, rm, LM_ALPHA);
 		lmSmooth = ema(lmSmooth, lm, LM_ALPHA);
 
+		//Pose Schätzung starten
 		estimatePoseFrom5Points(frameBgr, reSmooth, leSmooth, noSmooth, rmSmooth, lmSmooth);
-
         double geoRoll = calculate2DRoll(reSmooth, leSmooth);
+
 		// Zeichnen zur Kontrolle
 		Imgproc.rectangle(frameBgr, new Point(f[0], f[1]), new Point(f[0] + f[2], f[1] + f[3]), new Scalar(0, 255, 0), 2);
 		Imgproc.circle(frameBgr, noSmooth, 3, new Scalar(0, 255, 0), -1);
@@ -726,11 +762,7 @@ public class FXController {
 
             // States aktualisieren
 			updateTiltState(smoothRoll);
-
-
 			updateLeanState(smoothZ);
-
-
 			updateHeadState(smoothYaw, smoothPitch);
 
             // Visualisierung
@@ -743,36 +775,24 @@ public class FXController {
 		faces.release();
 	}
 
-
+	/**
+	 * berechnet den 2D Rollwinkel, basierend auf der Steigung der Verbindungslinie zwischen beiden Augen
+	 * @param re
+	 * @param le
+	 * @return
+	 */
     private double calculate2DRoll(Point re, Point le) {
         if (re == null || le == null) return 0;
-        double dy = le.y - re.y;
-        double dx = le.x - re.x;
-        // Wir berechnen den Winkel der Augenlinie zur Horizontalen
+        double dy = le.y - re.y; //Höhenunterschied
+        double dx = le.x - re.x; //Horizontaler Abstand
+        // Math.atan2 liefert den Winkel im Bogenmaß, wir wandeln in Grad um
         return Math.toDegrees(Math.atan2(dy, dx));
     }
-    private double calculate2DYaw(Point re, Point le, Point no) {
-        // Distanz Auge-Nase (Horizontal)
-        double distToRightEye = Math.abs(no.x - re.x);
-        double distToLeftEye = Math.abs(no.x - le.x);
 
-        // Verhältnis berechnen (Wertebereich ca. -1.0 bis 1.0)
-        // Ein Wert von 0 bedeutet "Nase ist mittig"
-        return (distToRightEye - distToLeftEye) / (distToRightEye + distToLeftEye) * 100.0;
-    }
-    private double calculate2DPitch(Point re, Point le, Point no, Point rm, Point lm) {
-        // Durchschnittliche Augenhöhe und Mundhöhe
-        double eyeY = (re.y + le.y) / 2.0;
-        double mouthY = (rm.y + lm.y) / 2.0;
-
-        // Wo liegt die Nase dazwischen?
-        double faceHeight = mouthY - eyeY;
-
-        // Verhältnis (Standardwert liegt meist bei ~0.4 - 0.5)
-        double ratio = (no.y - eyeY) / faceHeight;
-        // Wir normalisieren das auf einen Wert um 0 (Abweichung vom Standard)
-        return (ratio - 0.50) * 100.0;
-    }
+	/**
+	 *
+	 * @param frame
+	 */
     private void drawCalibrationProgress(Mat frame) {
         String msg = "KALIBRIERUNG: Kopf bewegen...";
         Imgproc.putText(frame, msg, new Point(20, 130),
@@ -801,7 +821,7 @@ public class FXController {
         // Debug-Werte am unteren Rand
         String debug = String.format("Y: %.1f | P: %.1f | R: %.1f | Z: %.1f",
                 smoothYaw, smoothPitch, smoothRoll, smoothZ);
-        Imgproc.putText(frame, debug, new Point(20, frame.rows() - 20),
+        Imgproc.putText(frame, debug, new Point(20, (double)frame.rows() - 20),
                 Imgproc.FONT_HERSHEY_SIMPLEX, 0.5, new Scalar(0, 255, 255), 1);
     }
 
@@ -842,7 +862,6 @@ public class FXController {
 			catch (InterruptedException e)
 			{
 				// log any exception
-				//System.err.println("Exception in stopping the frame capture, trying to release the camera now... " + e);
 			}
 		}
 		if (this.capture.isOpened())
@@ -876,12 +895,7 @@ public class FXController {
 
 	@FXML
 	private ComboBox<String> cameraSelector;
-
-
-
-
 	
-
 
 	// ====== Bridge-API für Minecraft UI (ohne JavaFX) ======
 	
