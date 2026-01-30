@@ -1,4 +1,4 @@
-package net.Gamesco.MovementDemo;
+package net.Gamesco.Headcontrol;
 
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.KeyMapping;
@@ -13,11 +13,11 @@ public final class Keybindings {
     }
 
     //Man könnte eigene Kategorie für unseren Keybind, hab es aber mal in die Kategorie "Gameplay" gepackt
-    //private static final String CATEGORY = "key.categories." + MovementDemo.MOD_ID;
+    //private static final String CATEGORY = "key.categories." + Headcontrol.MOD_ID;
 
     //Keybind erstellen
     public final KeyMapping toggleActivationState = new KeyMapping(
-            "key." + MovementDemo.MOD_ID + ".toggle_activation_state",
+            "key." + Headcontrol.MOD_ID + ".toggle_activation_state",
             KeyConflictContext.IN_GAME,
             InputConstants.getKey(InputConstants.KEY_B, -1),
             "key.categories.headcontrol"
