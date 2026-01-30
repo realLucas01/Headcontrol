@@ -6,7 +6,7 @@ import java.util.concurrent.TimeUnit;
 
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
-import net.Gamesco.MovementDemo.client.HeadControlState;
+import net.Gamesco.Headcontrol.client.HeadControlState;
 
 import org.opencv.core.Mat;
 import org.opencv.videoio.VideoCapture;

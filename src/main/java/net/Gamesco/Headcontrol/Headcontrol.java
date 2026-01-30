@@ -1,13 +1,8 @@
 //Main Class for programming the demo mod for our MMMI project
-package net.Gamesco.MovementDemo;
+package net.Gamesco.Headcontrol;
 
-import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.logging.LogUtils;
-import net.minecraft.client.KeyMapping;
-import net.minecraft.client.KeyboardHandler;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.player.KeyboardInput;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.InputEvent;
@@ -18,26 +13,25 @@ import net.minecraftforge.event.server.ServerStartingEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
-import net.Gamesco.MovementDemo.client.HeadControlState;
+import net.Gamesco.Headcontrol.client.HeadControlState;
 import org.slf4j.Logger;
 import face.tracking.StartFaceTracking;
 import face.tracking.FXController;
 
 
 // The value here should match an entry in the META-INF/mods.toml file
-@Mod(MovementDemo.MOD_ID)
-public class MovementDemo {
+@Mod(Headcontrol.MOD_ID)
+public class Headcontrol {
     // Define mod id in a common place for everything to reference
-    public static final String MOD_ID = "movementdemo";
+    public static final String MOD_ID = "headcontrol";
     // Directly reference a slf4j logger
     public static final Logger LOGGER = LogUtils.getLogger();
     public FXController controller;
 
-    public MovementDemo(FMLJavaModLoadingContext context) {
+    public Headcontrol(FMLJavaModLoadingContext context) {
         IEventBus modEventBus = context.getModEventBus();
 
         // Register the commonSetup method for modloading
