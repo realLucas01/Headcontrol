@@ -6,8 +6,6 @@ import javafx.stage.Stage;
 import javafx.scene.Scene;
 import javafx.fxml.FXMLLoader;
 
-import javafx.event.EventHandler;
-import javafx.stage.WindowEvent;
 import nu.pattern.OpenCV;
 
 

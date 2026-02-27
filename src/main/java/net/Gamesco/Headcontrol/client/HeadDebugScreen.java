@@ -90,7 +90,7 @@ public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
     int px = cx + (int) Math.round(clamp(yaw / YAW_MAX, -1, 1) * (grid / 2.0 - 12));
     int py = cy + (int) Math.round(clamp(pitch / PITCH_MAX, -1, 1) * (grid / 2.0 - 12));
     drawDot(g, px, py, 5,
-            (fx != null && trackingLogic.getHeadState() == HeadState.NEUTRAL) ? neutral : active);
+            (fx != null && HeadTrackingLogic.getHeadState() == HeadState.NEUTRAL) ? neutral : active);
 
     // ===== Lean-Bar =====
     int bx = gx + grid + gap;
@@ -108,7 +108,7 @@ public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
     // relZ negativ = forward -> Marker nach oben
     double zNorm = clamp((-relZ) / Z_MAX, -1, 1);
     int my = mid + (int) Math.round(zNorm * (barH / 2.0 - 10));
-    int leanColor = (fx != null && trackingLogic.getLeanState() == LeanState.NEUTRAL) ? neutral : active;
+    int leanColor = (fx != null && HeadTrackingLogic.getLeanState() == LeanState.NEUTRAL) ? neutral : active;
     drawDot(g, bx + barW / 2, my, 5, leanColor);
 
     // Statuszeile

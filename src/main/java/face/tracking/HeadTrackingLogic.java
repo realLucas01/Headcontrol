@@ -68,18 +68,19 @@ public class HeadTrackingLogic {
     private Point rmSmooth = null;
     private static final double LM_ALPHA = 0.35; //Glättung für die 2D Punkte
 
-    public static HeadState headState = HeadState.NEUTRAL; // Startposition
+    private static HeadState headState = HeadState.NEUTRAL; // Startposition
     private static LeanState leanState = LeanState.NEUTRAL;
     private static TiltState tiltState = TiltState.NEUTRAL;
 
     private int holdCounter = 0;
 
-    public boolean yunetReady = false;
-
-
+    private boolean yunetReady = false;
 
     public void setYunetReady(boolean setting){
         this.yunetReady = setting;
+    }
+    public synchronized boolean getCalibrationStatus(){
+        return isCalibrated;
     }
 
     /**
@@ -119,10 +120,10 @@ public class HeadTrackingLogic {
     /**
      * Exponentieller gleitender Durschnitt (EMA)
      * Verhindert das Springen von 2D Punkten bei Bildrauschen
-     * @param prev
-     * @param cur
+     * @param prev prev point
+     * @param cur current point
      * @param a Glättungsfaktor
-     * @return
+     * @return Durschschnittspunkt
      */
     private Point ema(Point prev, Point cur, double a) {
         if (prev == null) return cur;
@@ -177,14 +178,14 @@ public class HeadTrackingLogic {
 
     /**
      * Logik zur Bestimmung und Änderung des Lehnen States
-     * @param relRoll
+     * @param relRoll Wert des Lehnwertes/Richtung
      */
     private void updateTiltState(double relRoll) {
         if (headState == HeadState.LEFT || headState == HeadState.RIGHT ||
                 headState == HeadState.LEFT_UP || headState == HeadState.LEFT_DOWN ||
                 headState == HeadState.RIGHT_UP || headState == HeadState.RIGHT_DOWN) {
 
-            this.tiltState = TiltState.NEUTRAL;
+            tiltState = TiltState.NEUTRAL;
             return;
         }
         TiltState targetTilt = TiltState.NEUTRAL;
@@ -330,28 +331,28 @@ public class HeadTrackingLogic {
 
     /**
      * getter Funktionen für die Übertragung der States nach Minecraft
-     * @return
+     * @return den geforderten State
      */
-    public static HeadState getHeadState(){return headState;}
-    public static LeanState getLeanState(){return leanState;}
-    public static TiltState getTiltState(){return tiltState;}
+    public static synchronized HeadState getHeadState(){return headState;}
+    public static synchronized LeanState getLeanState(){return leanState;}
+    public static synchronized TiltState getTiltState(){return tiltState;}
 
 
     /* ========   Werte für Minecraft-HUD   ======== */
 
     // Links / Rechts (Yaw)
-    public double getUiYaw() {return smoothYaw;}
+    public synchronized double getUiYaw() {return smoothYaw;}
     // Hoch / Runter (Pitch)
-    public double getUiPitch() {return smoothPitch;}
+    public synchronized double getUiPitch() {return smoothPitch;}
     // Vor / Zurück (Lean)
     // NEGATIV = nach vorne lehnen (wie im OpenCV-Code)
-    public double getUiRelZ() {return smoothZ;}
+    public synchronized double getUiRelZ() {return smoothZ;}
 
 
     /**
      * Wandelt eine 3x3 Rotationsmatrix in Euler Winkel (pitch, Yaw, Roll) um
      * @param rotationMatrix
-     * @return
+     * @return Euler Winkel Array
      */
     private static double[] rotationMatrixToEuler(Mat rotationMatrix) {
         // extraktion der MAtrix Elemente
@@ -519,5 +520,4 @@ public class HeadTrackingLogic {
         // Math.atan2 liefert den Winkel im Bogenmaß, wir wandeln in Grad um
         return Math.toDegrees(Math.atan2(dy, dx));
     }
-
 }

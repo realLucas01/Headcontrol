@@ -13,7 +13,6 @@ import org.opencv.videoio.VideoCapture;
 import org.opencv.objdetect.FaceDetectorYN;
 import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
-import org.opencv.core.*;
 
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
@@ -27,7 +26,6 @@ import org.opencv.videoio.Videoio;
  * Es nutzt OpenCV für die Bildverarbeitung und YuNet für die Gesichtserkennung
  */
 public class FXController {
-    UIOverlay uiOverlay = new UIOverlay();
     HeadTrackingLogic trackingLogic = new HeadTrackingLogic();
     //YuNet Modell zur Gesichtserkennung
 	private FaceDetectorYN yunet;
@@ -205,6 +203,7 @@ public class FXController {
 					// face detection
 					Imgproc.resize(frame, new Mat(), new Size(320,240));
 					this.trackingLogic.detectAndDisplay(frame, yunet);
+                    isCalibrated = trackingLogic.getCalibrationStatus();
 				}
 
 			} catch (Exception e) {
