@@ -38,9 +38,7 @@ public class TrackingDataSnapshot {
                 this.facePoints[i].y = facePoints[i].y;
             }
         }
-        for (int i=0; i<14;i++){
-            this.f[i] = f[i];
-        }
+        System.arraycopy(f, 0, this.f, 0, 14);
 
 
     }

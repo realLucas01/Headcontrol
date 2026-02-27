@@ -1,6 +1,6 @@
 package face.tracking;
 
-import net.Gamesco.MovementDemo.client.HeadControlState;
+import net.Gamesco.Headcontrol.client.HeadControlState;
 import org.opencv.calib3d.Calib3d;
 import org.opencv.core.*;
 import org.opencv.imgproc.Imgproc;

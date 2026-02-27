@@ -2,12 +2,7 @@
 package net.Gamesco.Headcontrol;
 
 import com.mojang.logging.LogUtils;
-<<<<<<< Updated upstream:src/main/java/net/Gamesco/Headcontrol/Headcontrol.java
-=======
 import face.tracking.HeadTrackingLogic;
-import net.minecraft.client.KeyMapping;
-import net.minecraft.client.KeyboardHandler;
->>>>>>> Stashed changes:src/main/java/net/Gamesco/MovementDemo/MovementDemo.java
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
