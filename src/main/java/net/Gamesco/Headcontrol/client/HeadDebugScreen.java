@@ -1,16 +1,12 @@
 package net.Gamesco.Headcontrol.client;
 
-import face.tracking.FXController;
-import face.tracking.HeadState;
-import face.tracking.HeadTrackingLogic;
-import face.tracking.LeanState;
+import face.tracking.*;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 public class HeadDebugScreen extends Screen {
-    HeadTrackingLogic trackingLogic = new HeadTrackingLogic();
     public HeadDebugScreen() {
         super(Component.literal("HeadControl UI"));
     }
@@ -51,11 +47,14 @@ public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
     FXController fx = FXController.instance;
 
     boolean ok = (fx != null && fx.isCameraActive() && fx.isCalibrated());
+
+    TrackingDataSnapshot data = HeadTrackingLogic.getInstance().getSnapshot();
+    
     int stateColor = ok ? neutral : warn;
 
-    double yaw = (fx != null) ? trackingLogic.getUiYaw() : 0.0;
-    double pitch = (fx != null) ? trackingLogic.getUiPitch() : 0.0;
-    double relZ = (fx != null) ? trackingLogic.getUiRelZ() : 0.0;
+    double yaw = (fx != null) ? data.yaw : 0.0;
+    double pitch = (fx != null) ? data.pitch : 0.0;
+    double relZ = (fx != null) ? data.z : 0.0;
 
     // Skalierung (kannst du später feinjustieren)
     double YAW_MAX = 25.0;
@@ -90,7 +89,7 @@ public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
     int px = cx + (int) Math.round(clamp(yaw / YAW_MAX, -1, 1) * (grid / 2.0 - 12));
     int py = cy + (int) Math.round(clamp(pitch / PITCH_MAX, -1, 1) * (grid / 2.0 - 12));
     drawDot(g, px, py, 5,
-            (fx != null && HeadTrackingLogic.getHeadState() == HeadState.NEUTRAL) ? neutral : active);
+            (fx != null && data.headState == HeadState.NEUTRAL) ? neutral : active);
 
     // ===== Lean-Bar =====
     int bx = gx + grid + gap;
@@ -108,7 +107,7 @@ public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
     // relZ negativ = forward -> Marker nach oben
     double zNorm = clamp((-relZ) / Z_MAX, -1, 1);
     int my = mid + (int) Math.round(zNorm * (barH / 2.0 - 10));
-    int leanColor = (fx != null && HeadTrackingLogic.getLeanState() == LeanState.NEUTRAL) ? neutral : active;
+    int leanColor = (fx != null && data.leanState == LeanState.NEUTRAL) ? neutral : active;
     drawDot(g, bx + barW / 2, my, 5, leanColor);
 
     // Statuszeile

@@ -68,13 +68,30 @@ public class HeadTrackingLogic {
     private Point rmSmooth = null;
     private static final double LM_ALPHA = 0.35; //Glättung für die 2D Punkte
 
-    private static HeadState headState = HeadState.NEUTRAL; // Startposition
-    private static LeanState leanState = LeanState.NEUTRAL;
-    private static TiltState tiltState = TiltState.NEUTRAL;
+    private  HeadState headState = HeadState.NEUTRAL; // Startposition
+    private  LeanState leanState = LeanState.NEUTRAL;
+    private  TiltState tiltState = TiltState.NEUTRAL;
 
     private int holdCounter = 0;
 
     private boolean yunetReady = false;
+    
+    
+    private static final HeadTrackingLogic INSTANCE = new HeadTrackingLogic();
+    public static HeadTrackingLogic getInstance() {return INSTANCE;}
+    private final TrackingDataSnapshot snapshot = new TrackingDataSnapshot();
+
+    public synchronized void updateData(HeadState headState, LeanState leanState, TiltState tiltState, double y, double p, double z, double smoothZ, Point[] pts, float[] f){
+       // updateHeadState(y, p);
+       // updateLeanState(z);
+       // updateTiltState();
+        snapshot.update(headState, leanState, tiltState, y,p,z,smoothZ,pts,f);
+    }
+    public TrackingDataSnapshot getSnapshot() { return snapshot; }
+    
+    
+    
+    
 
     public void setYunetReady(boolean setting){
         this.yunetReady = setting;
@@ -333,6 +350,7 @@ public class HeadTrackingLogic {
      * getter Funktionen für die Übertragung der States nach Minecraft
      * @return den geforderten State
      */
+    /*
     public static synchronized HeadState getHeadState(){return headState;}
     public static synchronized LeanState getLeanState(){return leanState;}
     public static synchronized TiltState getTiltState(){return tiltState;}
@@ -495,11 +513,11 @@ public class HeadTrackingLogic {
             updateHeadState(smoothYaw, smoothPitch);
 
             Point[] currentPoints = {reSmooth, leSmooth, noSmooth, rmSmooth, lmSmooth};
-            TrackingDataSnapshot currentData = new TrackingDataSnapshot(headState,leanState,tiltState,smoothYaw,
+            this.updateData(headState,leanState,tiltState,smoothYaw,
                     smoothPitch,smoothRoll,smoothZ,currentPoints,f);
             // Visualisierung
-            uiOverlay.drawDirectionGrid(frameBgr, currentData, dynamicPitchThres, dynamicYawThres);
-            uiOverlay.drawStatusText(frameBgr, currentData);
+            uiOverlay.drawDirectionGrid(frameBgr, snapshot, dynamicPitchThres, dynamicYawThres);
+            uiOverlay.drawStatusText(frameBgr, snapshot);
         }
 
         // Gesicht und Punkte zeichnen (Kontrolle)

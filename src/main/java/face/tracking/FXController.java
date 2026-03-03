@@ -26,7 +26,7 @@ import org.opencv.videoio.Videoio;
  * Es nutzt OpenCV für die Bildverarbeitung und YuNet für die Gesichtserkennung
  */
 public class FXController {
-    HeadTrackingLogic trackingLogic = new HeadTrackingLogic();
+    HeadTrackingLogic trackingLogic = HeadTrackingLogic.getInstance();
     //YuNet Modell zur Gesichtserkennung
 	private FaceDetectorYN yunet;
 	private boolean yunetReady = false;

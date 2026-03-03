@@ -4,13 +4,15 @@ import face.tracking.FXController;
 import face.tracking.HeadState;
 import face.tracking.HeadTrackingLogic;
 import face.tracking.LeanState;
+import face.tracking.TrackingDataSnapshot;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.DeltaTracker;
 
 public class HeadHudRenderer {
-    static HeadTrackingLogic trackingLogic = new HeadTrackingLogic();
     public static void render(GuiGraphics g, DeltaTracker delta) {
+        TrackingDataSnapshot data = HeadTrackingLogic.getInstance().getSnapshot();
+
         // Mod global OFF → nichts anzeigen
         if (!HeadControlState.isEnabled()) return;
 
@@ -44,9 +46,9 @@ public class HeadHudRenderer {
         int white = 0xFFF3F4F6;
 
         // Daten holen (deine Getter)
-        double yaw = trackingLogic.getUiYaw();
-        double pitch = trackingLogic.getUiPitch();
-        double relZ = trackingLogic.getUiRelZ();
+        double yaw = data.yaw;
+        double pitch = data.pitch;
+        double relZ = data.z;
 
         // Skalierung
         double YAW_MAX = 25.0;
@@ -81,7 +83,7 @@ public class HeadHudRenderer {
         int px = cx + (int)Math.round(clamp(yaw / YAW_MAX, -1, 1) * (grid / 2.0 - 12));
         int py = cy + (int)Math.round(clamp(pitch / PITCH_MAX, -1, 1) * (grid / 2.0 - 12));
 
-        int dotColor = (trackingLogic.getHeadState() == HeadState.NEUTRAL) ? neutral : active;
+        int dotColor = (data.headState == HeadState.NEUTRAL) ? neutral : active;
         drawDot(g, px, py, 5, dotColor);
 
         // ===== Lean-Bar =====
@@ -100,7 +102,7 @@ public class HeadHudRenderer {
         double zNorm = clamp((-relZ) / Z_MAX, -1, 1);
         int my = mid + (int)Math.round(zNorm * (barH / 2.0 - 10));
 
-        int leanColor = (trackingLogic.getLeanState() == LeanState.NEUTRAL) ? neutral : active;
+        int leanColor = (data.leanState == LeanState.NEUTRAL) ? neutral : active;
         drawDot(g, bx + barW / 2, my, 5, leanColor);
     }
 

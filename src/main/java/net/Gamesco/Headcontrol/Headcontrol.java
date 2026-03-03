@@ -3,6 +3,7 @@ package net.Gamesco.Headcontrol;
 
 import com.mojang.logging.LogUtils;
 import face.tracking.HeadTrackingLogic;
+import face.tracking.TrackingDataSnapshot;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
@@ -49,17 +50,19 @@ public class Headcontrol {
 
     @SubscribeEvent
     public void playerTick(TickEvent.PlayerTickEvent event) {
+        TrackingDataSnapshot data = HeadTrackingLogic.getInstance().getSnapshot();
+
         if (!HeadControlState.isEnabled()) return;
         //set controller
         if (controller == null) {
             controller = FXController.instance;
-            HeadTrackingLogic trackingLogic = new HeadTrackingLogic();
         }
+
         //Works if OpenCV is started properly
         if (controller != null) {
             //controlls where player looks
            //System.out.println("JA");
-            switch (HeadTrackingLogic.getHeadState()) {
+            switch (data.headState) {
                 case UP:
                     for(int i=0; i <=16 ;i++){event.player.setXRot(event.player.getXRot() - 0.05f);}
                     break;
@@ -74,7 +77,7 @@ public class Headcontrol {
                     break;
             }
             //controls if player walks forwards or backwards
-            switch (HeadTrackingLogic.getLeanState()){
+            switch (data.leanState){
                 case FORWARD:
                     if(event.player.onGround()){
                         //Make the player walk backwards in standard walking speed.
@@ -101,7 +104,7 @@ public class Headcontrol {
                     break;
             }
             //controlls if Player walks to the left or to the right
-            switch (HeadTrackingLogic.getTiltState()){
+            switch (data.tiltState){
                 case LEFT:
                     if(event.player.onGround()){
                         //Make the player walk to the left in standard walking speed.
