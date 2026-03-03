@@ -85,7 +85,7 @@ public class HeadTrackingLogic {
        // updateHeadState(y, p);
        // updateLeanState(z);
        // updateTiltState();
-        snapshot.update(headState, leanState, tiltState, y,p,z,smoothZ,pts,f);
+        snapshot.update(headState, leanState, tiltState, y,p,z,smoothZ,pts,f, this.dynamicYawThres, this.dynamicPitchThres);
     }
     public TrackingDataSnapshot getSnapshot() { return snapshot; }
     

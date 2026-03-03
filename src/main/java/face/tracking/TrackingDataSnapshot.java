@@ -53,7 +53,7 @@ public class TrackingDataSnapshot {
 
     public void update(HeadState head, LeanState lean, TiltState tilt,
                        double yaw, double pitch, double roll, double z,
-                       Point[] facePoints, float[] f) {
+                       Point[] facePoints, float[] f, double yawThres, double pitchThres) {
         this.headState = head;
         this.leanState = lean;
         this.tiltState = tilt;
@@ -61,6 +61,8 @@ public class TrackingDataSnapshot {
         this.pitch = pitch;
         this.roll = roll;
         this.z = z;
+        this.yawThres = yawThres;
+        this.pitchThres = pitchThres;
         for (int i = 0; i < 5; i++) { //kopieren Daten facepoints
             if (facePoints[i] != null) {
                 if (this.facePoints[i] == null) this.facePoints[i] = new Point();

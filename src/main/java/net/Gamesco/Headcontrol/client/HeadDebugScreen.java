@@ -61,6 +61,11 @@ public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
     double PITCH_MAX = 18.0;
     double Z_MAX = 70.0;
 
+    // Skalierung berechnen (wie groß ist der Schwellenwert im Verhältnis zum Maximum?)
+    // Wir nutzen dieselbe Logik wie beim Punkt-Zeichnen
+    int thresX = (int) Math.round((data.yawThres / YAW_MAX) * (grid / 2.0 - 12));
+    int thresY = (int) Math.round((data.pitchThres / PITCH_MAX) * (grid / 2.0 - 12));
+
     // Panel Hintergrund
     g.fill(x0 - 10, y0 - 10, x0 + grid + gap + barW + 10, y0 + Math.max(grid, barH) + 34, bg);
 
@@ -77,13 +82,11 @@ public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
     int cy = gy + grid / 2;
 
     // Rahmen + Mittellinien
-    g.hLine(gx, gx + grid, gy, line);
-    g.hLine(gx, gx + grid, gy + grid, line);
-    g.vLine(gx, gy, gy + grid, line);
-    g.vLine(gx + grid, gy, gy + grid, line);
-
-    g.hLine(gx + 8, gx + grid - 8, cy, line);
-    g.vLine(cx, gy + 8, gy + grid - 8, line);
+    // Optionale Rahmenlinien für das dynamische Grid
+    g.hLine(cx - thresX, cx + thresX, cy - thresY, white);
+    g.hLine(cx - thresX, cx + thresX, cy + thresY, white);
+    g.vLine(cx - thresX, cy - thresY, cy + thresY, white);
+    g.vLine(cx + thresX, cy - thresY, cy + thresY, white);
 
     // Punkt
     int px = cx + (int) Math.round(clamp(yaw / YAW_MAX, -1, 1) * (grid / 2.0 - 12));

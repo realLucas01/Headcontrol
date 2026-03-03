@@ -49,6 +49,8 @@ public class HeadHudRenderer {
         double yaw = data.yaw;
         double pitch = data.pitch;
         double relZ = data.z;
+        double yawThres = data.yawThres;
+        double pitchThres = data.pitchThres;
 
         // Skalierung
         double YAW_MAX = 25.0;
@@ -64,24 +66,39 @@ public class HeadHudRenderer {
         // ===== Grid =====
         int gx = x0;
         int gy = y0 + 14;
-
-        g.fill(gx, gy, gx + grid, gy + grid, 0xAA000000);
-
         int cx = gx + grid / 2;
         int cy = gy + grid / 2;
 
+        // Skalierung berechnen (wie groß ist der Schwellenwert im Verhältnis zum Maximum?)
+        // Wir nutzen dieselbe Logik wie beim Punkt-Zeichnen
+        int thresX = (int) Math.round((data.yawThres / YAW_MAX) * (grid / 2.0 - 12));
+        int thresY = (int) Math.round((data.pitchThres / PITCH_MAX) * (grid / 2.0 - 12));
+        double scaleX = (grid / 2.0) / YAW_MAX;
+        double scaleY = (grid / 2.0) / PITCH_MAX;
+
+
+        g.fill(gx, gy, gx + grid, gy + grid, 0xAA000000);
+
+        int dx = (int) (yawThres * scaleX);
+        int dy = (int) (pitchThres * scaleY);
+
         // Rahmen + Mittellinien
+        int innerLineColor = 0x88555555; // Halbtransparentes Grau
+        g.vLine(cx - dx, gy, gy + grid, innerLineColor); // Linke Grenze
+        g.vLine(cx + dx, gy, gy + grid, innerLineColor); // Rechte Grenze
+        g.hLine(gx, gx + grid, cy - dy, innerLineColor); // Obere Grenze
+        g.hLine(gx, gx + grid, cy + dy, innerLineColor); // Untere Grenze
+
+        // Äußerer Rahmen & Mittellinien (statisch zur Orientierung)
         g.hLine(gx, gx + grid, gy, line);
         g.hLine(gx, gx + grid, gy + grid, line);
         g.vLine(gx, gy, gy + grid, line);
         g.vLine(gx + grid, gy, gy + grid, line);
 
-        g.hLine(gx + 8, gx + grid - 8, cy, line);
-        g.vLine(cx, gy + 8, gy + grid - 8, line);
 
         // Punkt
-        int px = cx + (int)Math.round(clamp(yaw / YAW_MAX, -1, 1) * (grid / 2.0 - 12));
-        int py = cy + (int)Math.round(clamp(pitch / PITCH_MAX, -1, 1) * (grid / 2.0 - 12));
+        int px = cx + (int) Math.round(clamp(yaw * scaleX, -grid/2.0 + 5, grid/2.0 - 5));
+        int py = cy + (int) Math.round(clamp(pitch * scaleY, -grid/2.0 + 5, grid/2.0 - 5));
 
         int dotColor = (data.headState == HeadState.NEUTRAL) ? neutral : active;
         drawDot(g, px, py, 5, dotColor);
