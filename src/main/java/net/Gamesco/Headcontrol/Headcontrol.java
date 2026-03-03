@@ -67,8 +67,24 @@ public class Headcontrol {
                 case LEFT:
                     for(int i=0; i <=16 ;i++){event.player.setYRot(event.player.getYRot() - 0.05f);}
                     break;
+                case LEFT_UP:
+                    for(int i=0; i <=16 ;i++){event.player.setYRot(event.player.getYRot() - 0.025f);}
+                    for(int i=0; i <=16 ;i++){event.player.setXRot(event.player.getXRot() - 0.025f);}
+                    break;
+                case LEFT_DOWN:
+                    for(int i=0; i <=16 ;i++){event.player.setYRot(event.player.getYRot() - 0.025f);}
+                    for(int i=0; i <=16 ;i++){event.player.setXRot(event.player.getXRot() + 0.025f);}
+                    break;
                 case RIGHT:
                     for(int i=0; i <=16 ;i++){event.player.setYRot(event.player.getYRot() + 0.05f);}
+                    break;
+                case RIGHT_UP:
+                    for(int i=0; i <=16 ;i++){event.player.setYRot(event.player.getYRot() + 0.025f);}
+                    for(int i=0; i <=16 ;i++){event.player.setXRot(event.player.getXRot() - 0.025f);}
+                    break;
+                case RIGHT_DOWN:
+                    for(int i=0; i <=16 ;i++){event.player.setYRot(event.player.getYRot() + 0.025f);}
+                    for(int i=0; i <=16 ;i++){event.player.setXRot(event.player.getXRot() + 0.025f);}
                     break;
             }
             //controls if player walks forwards or backwards
