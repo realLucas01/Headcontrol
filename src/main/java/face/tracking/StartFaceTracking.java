@@ -1,52 +1,19 @@
 package face.tracking;
 
-import javafx.application.Application;
-import javafx.scene.Parent;
-import javafx.stage.Stage;
-import javafx.scene.Scene;
-import javafx.fxml.FXMLLoader;
 
 import nu.pattern.OpenCV;
 
 
-public class StartFaceTracking extends Application {
+public class StartFaceTracking  {
 
-    @Override
-    public void start(Stage primaryStage) {
+    public static void start() {
         System.setProperty("opencv.videoio.log_level","3");
 
         try
         {
             OpenCV.loadLocally();
 
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/FirstFX.fxml"));
-            Parent root = loader.load();
-
-
-            // load the FXML resource
-            //FXMLLoader loader = new FXMLLoader(getClass().getResource("/FirstFX.fxml"));
-            //BorderPane root = (BorderPane) loader.load();
-            // create and style a scene
-            Scene scene = new Scene(root, 1050, 620);
-            // CSS laden (liegt in src/main/resources)
-            scene.getStylesheets().add(
-                    StartFaceTracking.class.getResource("/ui-dark.css").toExternalForm()
-            );
-            // scene
-            primaryStage.setTitle("Face Detection");
-
-            primaryStage.setScene(scene);
-
-            // show the GUI
-            primaryStage.show();
-
-            // init the controller
-            FXController controller = loader.getController();
-            controller.init();
-
-            // set the proper behavior on closing the application
-            primaryStage.setOnCloseRequest(we -> controller.setClosed());
-
+            TrackingManager.getInstance().init();
         }
         catch (Exception e)
         {
@@ -56,7 +23,10 @@ public class StartFaceTracking extends Application {
 
     public static void main() {
         // load the native OpenCV library
+        nu.pattern.OpenCV.loadLocally();
 
-        launch();
+        // 2. Dann die OpenCV-Objekte im Manager vorbereiten
+        TrackingManager.getInstance().setup();
+        start();
     }
 }

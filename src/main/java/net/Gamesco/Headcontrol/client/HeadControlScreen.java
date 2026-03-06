@@ -1,6 +1,8 @@
 package net.Gamesco.Headcontrol.client;
 
-import face.tracking.FXController;
+import face.tracking.HeadTrackingLogic;
+import face.tracking.TrackingDataSnapshot;
+import face.tracking.TrackingManager;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
@@ -8,6 +10,8 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 public class HeadControlScreen extends Screen {
+    TrackingDataSnapshot data = null;
+
 
     private int cameraIndex = 0; // default
     private Button btnEnabled, btnCamera, btnStartStop, btnCalibrate;
@@ -28,8 +32,8 @@ public class HeadControlScreen extends Screen {
             HeadControlState.toggle();
 
             // Optional: beim OFF direkt Kamera stoppen
-            FXController fx = FXController.instance;
-            if (!HeadControlState.isEnabled() && fx != null) fx.stopCameraNow();
+            TrackingManager fx = TrackingManager.instance;
+            if (!HeadControlState.isEnabled() && fx != null) fx.stop();
 
             b.setMessage(labelEnabled());
             refreshDynamicLabels();
@@ -43,7 +47,7 @@ public class HeadControlScreen extends Screen {
         btnStartStop = Button.builder(Component.literal("Camera: ..."), b -> {
             if (!HeadControlState.isEnabled()) return;
 
-            FXController fx = FXController.instance;
+            TrackingManager fx = TrackingManager.instance;
             if (fx != null) {
                 fx.toggleCamera(cameraIndex);
             }
@@ -52,8 +56,8 @@ public class HeadControlScreen extends Screen {
 
         btnCalibrate = Button.builder(Component.literal("Recalibrate"), b -> {
             if (!HeadControlState.isEnabled()) return;
-            FXController fx = FXController.instance;
-            if (fx != null) fx.recalibrate();
+            TrackingManager fx = TrackingManager.instance;
+            if (fx != null) HeadTrackingLogic.getInstance().resetCalibration();
             refreshDynamicLabels();
         }).bounds(x, y + 72, w, 20).build();
 
@@ -66,7 +70,7 @@ public class HeadControlScreen extends Screen {
     }
 
     private void refreshDynamicLabels() {
-        FXController fx = FXController.instance;
+        TrackingManager fx = TrackingManager.instance;
 
         // Buttons deaktivieren wenn Mod OFF
         boolean en = HeadControlState.isEnabled();
@@ -102,6 +106,8 @@ public class HeadControlScreen extends Screen {
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
         super.render(g, mouseX, mouseY, partialTick);
+        data = HeadTrackingLogic.getInstance().getSnapshot();
+
 
         // kleines Info-Panel
         int x = this.width / 2 - 110;
@@ -109,10 +115,10 @@ public class HeadControlScreen extends Screen {
 
         g.drawString(this.font, "N to open • ESC to close", x, y + 78, 0xFF9CA3AF, false);
 
-        FXController fx = FXController.instance;
+        TrackingManager fx = TrackingManager.instance;
         if (fx != null) {
             String s1 = "Active: " + fx.isCameraActive();
-            String s2 = "Calibrated: " + fx.isCalibrated();
+            String s2 = "Calibrated: " + data.isCalibrated;
             g.drawString(this.font, s1, x, y + 90, 0xFFE5E7EB, false);
             g.drawString(this.font, s2, x, y + 102, 0xFFE5E7EB, false);
         }

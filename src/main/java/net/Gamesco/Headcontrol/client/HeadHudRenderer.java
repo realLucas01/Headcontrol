@@ -1,6 +1,6 @@
 package net.Gamesco.Headcontrol.client;
 
-import face.tracking.FXController;
+import face.tracking.TrackingManager;
 import face.tracking.HeadState;
 import face.tracking.HeadTrackingLogic;
 import face.tracking.LeanState;
@@ -10,8 +10,9 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.DeltaTracker;
 
 public class HeadHudRenderer {
+    static TrackingDataSnapshot data = null;
     public static void render(GuiGraphics g, DeltaTracker delta) {
-        TrackingDataSnapshot data = HeadTrackingLogic.getInstance().getSnapshot();
+        data = HeadTrackingLogic.getInstance().getSnapshot();
 
         // Mod global OFF → nichts anzeigen
         if (!HeadControlState.isEnabled()) return;
@@ -22,8 +23,13 @@ public class HeadHudRenderer {
         if (mc.player == null || mc.level == null) return;
 
         // Tracking muss laufen + kalibriert sein
-        FXController fx = FXController.instance;
-        if (fx == null || !fx.isCameraActive() || !fx.isCalibrated()) return;
+        TrackingManager fx = TrackingManager.instance;
+        if(fx == null) return;
+        if(fx.getCapture() == null) return;
+        boolean calibrationRunning = data.calibrationProgress > 0 && data.calibrationProgress < 60;
+        boolean showUI = fx != null && fx.isCameraActive() && (data.isCalibrated || calibrationRunning);
+
+        if (!showUI) return;
 
         int sw = mc.getWindow().getGuiScaledWidth();
         int sh = mc.getWindow().getGuiScaledHeight();
@@ -63,11 +69,36 @@ public class HeadHudRenderer {
         // Titel
         g.drawString(mc.font, "HeadControl", x0, y0 - 2, text, false);
 
+
+        int progress = data.calibrationProgress;
+        boolean calibrated = data.isCalibrated;
+
         // ===== Grid =====
+
+
         int gx = x0;
         int gy = y0 + 14;
         int cx = gx + grid / 2;
         int cy = gy + grid / 2;
+
+        // ===== Kalibrierungs-Overlay (nur wenn nicht kalibriert) =====
+        if (!calibrated && data != null && fx.isCameraActive()) {
+            int barX = gx;
+            int barY = gy + grid + 5;
+            int barWidth = grid;
+            int barHeight = 4;
+
+            // Hintergrund des Balkens
+            g.fill(barX, barY, barX + barWidth, barY + barHeight, 0x44000000);
+
+            // Fortschritt (Cyan oder Blau)
+            int fillWidth = (int) ((progress / 60.0) * barWidth);
+            g.fill(barX, barY, barX + fillWidth, barY + barHeight, 0xFF3B82F6);
+
+            // Text-Hinweis
+            g.drawString(mc.font, "KALIBRIERUNG...", barX, barY + 6, 0xFF3B82F6, false);
+        }
+
 
         // Skalierung berechnen (wie groß ist der Schwellenwert im Verhältnis zum Maximum?)
         // Wir nutzen dieselbe Logik wie beim Punkt-Zeichnen

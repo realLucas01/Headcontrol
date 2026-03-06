@@ -7,6 +7,8 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 public class HeadDebugScreen extends Screen {
+    TrackingDataSnapshot data = null;
+
     public HeadDebugScreen() {
         super(Component.literal("HeadControl UI"));
     }
@@ -44,19 +46,20 @@ public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
     int white = 0xFFF3F4F6;
 
     // Daten holen
-    FXController fx = FXController.instance;
+    TrackingManager fx = TrackingManager.instance;
+    data = HeadTrackingLogic.getInstance().getSnapshot();
 
-    boolean ok = (fx != null && fx.isCameraActive() && fx.isCalibrated());
 
-    TrackingDataSnapshot data = HeadTrackingLogic.getInstance().getSnapshot();
-    
+    boolean ok = (data != null );
+
+
     int stateColor = ok ? neutral : warn;
 
-    double yaw = (fx != null) ? data.yaw : 0.0;
-    double pitch = (fx != null) ? data.pitch : 0.0;
-    double relZ = (fx != null) ? data.z : 0.0;
+    double yaw = (data != null) ? data.yaw : 0.0;
+    double pitch = (data != null) ? data.pitch : 0.0;
+    double relZ = (data != null) ? data.z : 0.0;
 
-    // Skalierung (kannst du später feinjustieren)
+    // Skalierung (kannst du später feinjustieren) // todo max werte über Snapshot senden
     double YAW_MAX = 25.0;
     double PITCH_MAX = 18.0;
     double Z_MAX = 70.0;
@@ -110,14 +113,14 @@ public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
     // relZ negativ = forward -> Marker nach oben
     double zNorm = clamp((-relZ) / Z_MAX, -1, 1);
     int my = mid + (int) Math.round(zNorm * (barH / 2.0 - 10));
-    int leanColor = (fx != null && data.leanState == LeanState.NEUTRAL) ? neutral : active;
+    int leanColor = (data != null && data.leanState == LeanState.NEUTRAL) ? neutral : active;
     drawDot(g, bx + barW / 2, my, 5, leanColor);
 
     // Statuszeile
     String status = (fx == null) ? "FX: not started"
-            : (!fx.isCameraActive() ? "Tracking: OFF"
-            : (!fx.isCalibrated() ? "Tracking: CAL..."
-            : "Tracking: ON"));
+            //: (!fx.isCameraActive() ? "Tracking: OFF"
+            //: (!fx.isCalibrated() ? "Tracking: CAL..."
+            : "Tracking: ON";
 
     g.drawString(mc.font, status, x0, gy + grid + 8, stateColor, false);
 

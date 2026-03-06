@@ -21,7 +21,6 @@ import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.Gamesco.Headcontrol.client.HeadControlState;
 import org.slf4j.Logger;
 import face.tracking.StartFaceTracking;
-import face.tracking.FXController;
 
 
 // The value here should match an entry in the META-INF/mods.toml file
@@ -31,7 +30,7 @@ public class Headcontrol {
     public static final String MOD_ID = "headcontrol";
     // Directly reference a slf4j logger
     public static final Logger LOGGER = LogUtils.getLogger();
-    public FXController controller;
+    TrackingDataSnapshot data = null;
 
     public Headcontrol(FMLJavaModLoadingContext context) {
         IEventBus modEventBus = context.getModEventBus();
@@ -50,16 +49,12 @@ public class Headcontrol {
 
     @SubscribeEvent
     public void playerTick(TickEvent.PlayerTickEvent event) {
-        TrackingDataSnapshot data = HeadTrackingLogic.getInstance().getSnapshot();
+        data = HeadTrackingLogic.getInstance().getSnapshot();
 
         if (!HeadControlState.isEnabled()) return;
-        //set controller
-        if (controller == null) {
-            controller = FXController.instance;
-        }
 
         //Works if OpenCV is started properly
-        if (controller != null) {
+        if (data != null) {
             //controlls where player looks
            //System.out.println("JA");
             switch (data.headState) {
@@ -72,8 +67,24 @@ public class Headcontrol {
                 case LEFT:
                     for(int i=0; i <=16 ;i++){event.player.setYRot(event.player.getYRot() - 0.05f);}
                     break;
+                case LEFT_UP:
+                    for(int i=0; i <=16 ;i++){event.player.setYRot(event.player.getYRot() - 0.025f);}
+                    for(int i=0; i <=16 ;i++){event.player.setXRot(event.player.getXRot() - 0.025f);}
+                    break;
+                case LEFT_DOWN:
+                    for(int i=0; i <=16 ;i++){event.player.setYRot(event.player.getYRot() - 0.025f);}
+                    for(int i=0; i <=16 ;i++){event.player.setXRot(event.player.getXRot() + 0.025f);}
+                    break;
                 case RIGHT:
                     for(int i=0; i <=16 ;i++){event.player.setYRot(event.player.getYRot() + 0.05f);}
+                    break;
+                case RIGHT_UP:
+                    for(int i=0; i <=16 ;i++){event.player.setYRot(event.player.getYRot() + 0.025f);}
+                    for(int i=0; i <=16 ;i++){event.player.setXRot(event.player.getXRot() - 0.025f);}
+                    break;
+                case RIGHT_DOWN:
+                    for(int i=0; i <=16 ;i++){event.player.setYRot(event.player.getYRot() + 0.025f);}
+                    for(int i=0; i <=16 ;i++){event.player.setXRot(event.player.getXRot() + 0.025f);}
                     break;
             }
             //controls if player walks forwards or backwards

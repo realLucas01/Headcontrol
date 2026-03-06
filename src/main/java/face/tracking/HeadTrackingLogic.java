@@ -8,7 +8,7 @@ import org.opencv.objdetect.FaceDetectorYN;
 
 
 public class HeadTrackingLogic {
-    UIOverlay uiOverlay = new UIOverlay();
+    //UIOverlay uiOverlay = new UIOverlay();
 
     //matrizen für Pose Stabilität, speichert die letzte bekannte Position
     private Mat rvecPrev;
@@ -85,7 +85,7 @@ public class HeadTrackingLogic {
        // updateHeadState(y, p);
        // updateLeanState(z);
        // updateTiltState();
-        snapshot.update(headState, leanState, tiltState, y,p,z,smoothZ,pts,f, this.dynamicYawThres, this.dynamicPitchThres);
+        snapshot.update(headState, leanState, tiltState, y,p,z,smoothZ,pts,f, this.dynamicYawThres, this.dynamicPitchThres, this.calibrationFramesCounter, this.isCalibrated);
     }
     public TrackingDataSnapshot getSnapshot() { return snapshot; }
     
@@ -482,7 +482,7 @@ public class HeadTrackingLogic {
             if (curRelPitch > maxObservedPitch) maxObservedPitch = curRelPitch;
             if (curRelRoll > maxObservedRoll) maxObservedRoll = curRelRoll;
 
-            uiOverlay.drawCalibrationProgress(frameBgr, calibrationFramesCounter, MAX_CALIBRATION_FRAMES);
+            //uiOverlay.drawCalibrationProgress(frameBgr, calibrationFramesCounter, MAX_CALIBRATION_FRAMES);
 
             if (calibrationFramesCounter >= MAX_CALIBRATION_FRAMES) {
                 offsetYaw = sumYaw / MAX_CALIBRATION_FRAMES;
@@ -516,12 +516,12 @@ public class HeadTrackingLogic {
             this.updateData(headState,leanState,tiltState,smoothYaw,
                     smoothPitch,smoothRoll,smoothZ,currentPoints,f);
             // Visualisierung
-            uiOverlay.drawDirectionGrid(frameBgr, snapshot, dynamicPitchThres, dynamicYawThres);
-            uiOverlay.drawStatusText(frameBgr, snapshot);
+            //uiOverlay.drawDirectionGrid(frameBgr, snapshot, dynamicPitchThres, dynamicYawThres);
+            //uiOverlay.drawStatusText(frameBgr, snapshot);
         }
 
         // Gesicht und Punkte zeichnen (Kontrolle)
-        uiOverlay.drawFaceMarkers(frameBgr, f, reSmooth, leSmooth, noSmooth, rmSmooth, lmSmooth);
+        //uiOverlay.drawFaceMarkers(frameBgr, f, reSmooth, leSmooth, noSmooth, rmSmooth, lmSmooth);
         faces.release();
     }
 
