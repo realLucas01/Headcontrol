@@ -81,11 +81,13 @@ public class HeadTrackingLogic {
     public static HeadTrackingLogic getInstance() {return INSTANCE;}
     private final TrackingDataSnapshot snapshot = new TrackingDataSnapshot();
 
-    public synchronized void updateData(HeadState headState, LeanState leanState, TiltState tiltState, double y, double p, double z, double smoothZ, Point[] pts, float[] f){
+    public synchronized void updateData(HeadState headState, LeanState leanState, TiltState tiltState, double y, double p,
+                                        double z, double smoothZ, Point[] pts, float[] f){
        // updateHeadState(y, p);
        // updateLeanState(z);
        // updateTiltState();
-        snapshot.update(headState, leanState, tiltState, y,p,z,smoothZ,pts,f, this.dynamicYawThres, this.dynamicPitchThres, this.calibrationFramesCounter, this.isCalibrated);
+        snapshot.update(headState, leanState, tiltState, y,p,z,smoothZ,pts,f, this.dynamicYawThres, this.dynamicPitchThres,
+                this.calibrationFramesCounter, this.isCalibrated, this.maxObservedYaw,this.maxObservedPitch,this.maxObservedRoll);
     }
     public TrackingDataSnapshot getSnapshot() { return snapshot; }
     
@@ -473,7 +475,7 @@ public class HeadTrackingLogic {
             sumZ += rawZ;
             sumRoll += geoRoll;
 
-            // Dynamische Maxima finden (Abweichung vom aktuellen Schnitt)
+            // Dynamische Maxima finden (Abweichung vom aktuellen Schnitt) todo
             double curRelYaw = Math.abs(rawYaw - (sumYaw / calibrationFramesCounter));
             double curRelPitch = Math.abs(rawPitch - (sumPitch / calibrationFramesCounter));
             double curRelRoll = Math.abs(geoRoll - (sumRoll / calibrationFramesCounter));

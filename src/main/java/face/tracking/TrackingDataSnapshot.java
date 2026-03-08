@@ -23,6 +23,10 @@ public class TrackingDataSnapshot {
     public volatile int calibrationProgress; // 0 bis 60
     public volatile boolean isCalibrated;
 
+    public volatile double maxObservedYaw;
+    public volatile double maxObservedPitch;
+    public volatile double maxObservedRoll;
+
     public volatile float[] f = new float[15];
 
     // Die 5 markanten Punkte für die Gesichts-Marker
@@ -56,7 +60,8 @@ public class TrackingDataSnapshot {
 
     public void update(HeadState head, LeanState lean, TiltState tilt,
                        double yaw, double pitch, double roll, double z,
-                       Point[] facePoints, float[] f, double yawThres, double pitchThres, int calibrationProgress, boolean isCalibrated) {
+                       Point[] facePoints, float[] f, double yawThres, double pitchThres, int calibrationProgress, boolean isCalibrated,
+                       double maxObservedYaw, double maxObservedPitch, double maxObservedRoll) {
         this.headState = head;
         this.leanState = lean;
         this.tiltState = tilt;
@@ -76,6 +81,10 @@ public class TrackingDataSnapshot {
         System.arraycopy(f, 0, this.f, 0, 14);
         this.calibrationProgress = calibrationProgress;
         this.isCalibrated = isCalibrated;
+
+        this.maxObservedYaw = maxObservedYaw;
+        this.maxObservedPitch =  maxObservedPitch;
+        this.maxObservedRoll =  maxObservedRoll;
 
 
 
