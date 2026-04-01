@@ -1,12 +1,14 @@
 package face.tracking;
 
 import net.Gamesco.Headcontrol.client.HeadControlState;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 import org.opencv.calib3d.Calib3d;
 import org.opencv.core.*;
 import org.opencv.imgproc.Imgproc;
 import org.opencv.objdetect.FaceDetectorYN;
 
-
+@OnlyIn(Dist.CLIENT)
 public class HeadTrackingLogic {
     //UIOverlay uiOverlay = new UIOverlay();
 
@@ -347,15 +349,6 @@ public class HeadTrackingLogic {
         }
 
     }
-
-    /**
-     * getter Funktionen für die Übertragung der States nach Minecraft
-     * @return den geforderten State
-     */
-    /*
-    public static synchronized HeadState getHeadState(){return headState;}
-    public static synchronized LeanState getLeanState(){return leanState;}
-    public static synchronized TiltState getTiltState(){return tiltState;}
 
 
     /* ========   Werte für Minecraft-HUD   ======== */

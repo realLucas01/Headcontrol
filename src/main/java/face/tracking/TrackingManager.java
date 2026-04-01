@@ -1,5 +1,6 @@
 package face.tracking;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -27,10 +28,8 @@ public class TrackingManager {
 
 
 	private ScheduledExecutorService timer;
-	private VideoCapture capture = new VideoCapture();
+	private VideoCapture capture;
 	private boolean cameraActive = false;
-    private Mat rvecPrev;
-    private Mat tvecPrev;
 
 	/**
 	 * Initialisiert den Controller, lädt das KI-Modell und bereitet die Kamera vor
@@ -51,12 +50,16 @@ public class TrackingManager {
 
     public void start(int cameraIndex) {
         if (cameraActive) return;
-        capture.open(Videoio.CAP_DSHOW + cameraIndex);
-        if (capture.isOpened()) {
-            cameraActive = true;
-            timer = Executors.newSingleThreadScheduledExecutor();
-            timer.scheduleAtFixedRate(this::processFrame, 0, 33, TimeUnit.MILLISECONDS);
-        }
+        setup();
+        CompletableFuture.runAsync(() -> {
+            capture.open(Videoio.CAP_DSHOW + cameraIndex);
+            if (capture.isOpened()) {
+                cameraActive = true;
+                timer = Executors.newSingleThreadScheduledExecutor();
+                timer.scheduleAtFixedRate(this::processFrame, 0, 33, TimeUnit.MILLISECONDS);
+            }
+        });
+
     }
 
 
@@ -76,8 +79,6 @@ public class TrackingManager {
     public void setup() {
         if (capture == null) {
             capture = new VideoCapture();
-            rvecPrev = new Mat();
-            tvecPrev = new Mat();
         }
     }
 
@@ -95,6 +96,7 @@ public class TrackingManager {
 
     // Im neuen TrackingManager (ehemals FXController)
     public synchronized void toggleCamera(int index) {
+        setup();
         if (this.cameraActive) {
             stop(); // Beendet den Thread und schließt die Kamera
             this.cameraActive = false;
@@ -108,7 +110,6 @@ public class TrackingManager {
             }
         }
     }
-
 
     public boolean isCameraActive() {
         return cameraActive;

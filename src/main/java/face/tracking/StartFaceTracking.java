@@ -1,32 +1,20 @@
 package face.tracking;
 
-
-import nu.pattern.OpenCV;
-
-
 public class StartFaceTracking  {
 
-    public static void start() {
-        System.setProperty("opencv.videoio.log_level","3");
+    public static void start() throws Exception {
 
-        try
-        {
-            OpenCV.loadLocally();
 
             TrackingManager.getInstance().init();
-        }
-        catch (Exception e)
-        {
-            e.printStackTrace();
-        }
+
     }
 
-    public static void main() {
+    public static void main() throws Exception {
         // load the native OpenCV library
-        nu.pattern.OpenCV.loadLocally();
+        //nu.pattern.OpenCV.loadLocally();
 
         // 2. Dann die OpenCV-Objekte im Manager vorbereiten
-        TrackingManager.getInstance().setup();
+        TrackingManager.getInstance().start(0);
         start();
     }
 }

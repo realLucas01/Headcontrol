@@ -49,6 +49,10 @@ public class Headcontrol {
 
     @SubscribeEvent
     public void playerTick(TickEvent.PlayerTickEvent event) {
+        if (!event.player.level().isClientSide()) return;
+        HeadTrackingLogic logic = HeadTrackingLogic.getInstance();
+        if(logic == null) return;
+
         data = HeadTrackingLogic.getInstance().getSnapshot();
 
         if (!HeadControlState.isEnabled()) return;
@@ -149,6 +153,7 @@ public class Headcontrol {
     private void commonSetup(final FMLCommonSetupEvent event) {
         // Some common setup code
         LOGGER.info("HELLO FROM COMMON SETUP");
+
     }
 
     // You can use SubscribeEvent and let the Event Bus discover methods to call
@@ -162,16 +167,21 @@ public class Headcontrol {
     public void onKeyMappingPress(InputEvent.Key event) {
         if (!HeadControlState.isEnabled()) return;
         //Nur ausführen wenn unser Keybind gedrückt
+        if (!net.minecraft.client.Minecraft.getInstance().level.isClientSide()) return;
         if(Keybindings.INSTANCE.toggleActivationState.isDown()){
             //Öffnen eines neuen Thread für OpenCV, da sonst der Client hängen bleibt oder die tps stirbt
-            Thread trackingThread = new Thread(() -> {
-                try {
-                    // Hier wird die JavaFX Application gestartet
-                    StartFaceTracking.main();
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            });
+            Thread trackingThread = null;
+            if(trackingThread == null || !trackingThread.isAlive()) {
+                trackingThread = new Thread(() -> {
+                    try {
+                        // Hier wird die JavaFX Application gestartet
+                        nu.pattern.OpenCV.loadLocally();// Das Build-Info zeigt dir ganz oben die Version der DLL an
+                        StartFaceTracking.main();
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                });
+            }
             trackingThread.setName("FaceTracking-Thread");
             trackingThread.start();
 
